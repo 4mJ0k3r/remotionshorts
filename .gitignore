@@ -1,0 +1,38 @@
+# Dependencies & Temp
+node_modules/
+D:/remotion-tmp/
+.remotion/
+dist/
+build/
+
+# Rendered outputs, stills, QA contact sheets & backups (keep on local disk, do not push)
+out/
+backup/
+*.mp4
+*.mov
+*.webm
+*.avi
+
+# Audio & Private Reference Assets (per PROJECT_MANIFEST.md section 8 privacy rules)
+public/**/*.mp3
+public/**/*.wav
+# raw voiceover sources kept in the project root (e.g. crushpart1.MP3)
+/*.mp3
+/*.MP3
+/*.wav
+character_sheet.png
+references/
+*.jsonl
+*.log
+*.bak
+
+# Throwaway local audio/ASR temp files in root
+_narration*.wav
+narration_*.json
+
+# OS / IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.tsbuildinfo
