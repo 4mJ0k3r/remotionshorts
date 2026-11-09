@@ -1,3 +1,5 @@
+import {makeShotCam, type V3} from "../../engine/camera";
+import type {KidOpts} from "../../engine/character";
 // Single source of truth for ElevatorCrushShort time, beats, 11 shots, camera paths, kicks, DOF.
 // Pure math only — no Three.js meshes. 1080x1920 @ 30 fps, TOTAL = 3345 frames (111.5 s).
 export const FPS = 30;
@@ -96,48 +98,27 @@ export const kickOffset = (f: number): [number, number, number] => {
   return [ox, oy, oz];
 };
 
-// ---- CAMERAS ----
-export type CamState = { pos: [number, number, number]; look: [number, number, number]; fov: number };
-
-type CamDef = {
-  posA: [number, number, number]; posB: [number, number, number];
-  look: [number, number, number]; lookB?: [number, number, number]; fov: number;
+// ---- Engine camera coverage: alternating diagonals and moving subject focus. ----
+export type CamState={pos:V3;look:V3;fov:number;roll:number};
+const CAMS:Record<number,{from:V3;to:V3;look:V3;lookTo?:V3;fov:number}>={
+ 1:{from:[-1.7,1.6,5.4],to:[-1.4,1.5,4.9],look:[0,1.15,0.4],fov:46},
+ 2:{from:[1.9,1.65,5.6],to:[1.5,1.5,5.1],look:[0,1.2,0],fov:46},
+ 3:{from:[-1.7,1.1,5.0],to:[-1.4,1.2,4.5],look:[0,1.3,0.4],fov:48},
+ 4:{from:[1.8,1.65,5.2],to:[1.5,1.5,4.8],look:[0,1.15,0.25],fov:48},
+ 5:{from:[-1.3,1.6,6.3],to:[-0.8,1.5,5.8],look:[0.3,1.25,-0.7],lookTo:[0.55,1.22,-0.7],fov:45},
+ 6:{from:[1.65,1.85,4.5],to:[1.3,1.65,4.1],look:[0.05,1.15,0.4],fov:44},
+ 7:{from:[-1.9,1.15,6.1],to:[-1.6,1.3,5.6],look:[0,1.85,0],fov:48},
+ 8:{from:[1.45,1.55,4.4],to:[1.1,1.48,4.0],look:[0,1.18,0.55],fov:43},
+ 9:{from:[-1.45,1.5,4.2],to:[-1.2,1.45,3.9],look:[0,1.2,0.55],fov:42},
+ 10:{from:[1.5,1.6,4.45],to:[1.2,1.5,4.15],look:[0,1.2,0.55],fov:42},
+ 11:{from:[-1.6,1.6,4.9],to:[-1.2,1.48,4.4],look:[0,1.16,0.45],fov:44},
 };
-
-// The cabin is a cut-away set: front doors wall at z = -1.8, side walls x = +-2.3, walls/floor/ceiling run past the
-// camera (z = 5.6) so no set edge is ever visible. Cameras sit in the open "fourth wall" side looking toward -z.
-// Shot 5 pans (lookA -> lookB) from the crush in the front-left corner to the hero at the brass panel (front-right).
-const CAMS: Record<number, CamDef> = {
-  1:  { posA: [-1.0, 1.55, 5.6],  posB: [-0.6, 1.5, 4.6],   look: [0.0, 1.3, 1.3],  fov: 46 },
-  2:  { posA: [1.4, 1.5, 5.4],    posB: [0.8, 1.45, 4.4],   look: [0.0, 1.3, 0.6],  fov: 46 },
-  3:  { posA: [-0.9, 1.0, 4.6],   posB: [-0.5, 1.1, 3.9],   look: [0.0, 1.6, 1.0],  fov: 48 },
-  4:  { posA: [0.0, 1.5, 5.4],    posB: [0.3, 1.45, 4.6],   look: [0.0, 1.3, 0.8],  fov: 48 },
-  5:  { posA: [-0.2, 1.5, 2.6],   posB: [0.1, 1.45, 1.9],   look: [-1.0, 1.3, -0.8], lookB: [1.2, 1.15, -1.45], fov: 45 },
-  6:  { posA: [0.85, 1.75, 4.0],  posB: [0.55, 1.6, 3.3],   look: [0.0, 1.25, 1.1], fov: 44 },
-  7:  { posA: [0.0, 1.05, 5.2],   posB: [0.0, 1.15, 4.6],   look: [0.0, 2.3, 0.8],  fov: 50 },
-  8:  { posA: [-1.1, 1.48, 4.2],  posB: [-0.65, 1.44, 3.3], look: [0.0, 1.35, 1.3], fov: 43 },
-  9:  { posA: [1.05, 1.52, 4.6],  posB: [0.75, 1.48, 4.0] , look: [-0.05, 1.36, 1.4], fov: 42 },
-  10: { posA: [-1.05, 1.46, 4.7], posB: [-0.7, 1.44, 4.1] , look: [0.0, 1.36, 1.4], fov: 42 },
-  11: { posA: [0.0, 1.6, 5.6],    posB: [0.0, 1.5, 4.2]  ,  look: [0.0, 1.36, 1.35], fov: 44 },
-};
-
-export const camAt = (id: number, f: number): CamState => {
-  const s = SHOTS[id - 1];
-  const c = CAMS[id];
-  const [kx, ky, kz] = kickOffset(f);
-  const span = s.b - s.a;
-  const moveEnd = s.a + Math.floor(span * 0.72);
-  const t = glide(f, s.a, moveEnd);
-  const drift = pushK(f, moveEnd, s.b, 0.07);
-  const pos = v3Lerp(c.posA, c.posB, t);
-  pos[2] -= drift;
-  const look = c.lookB ? v3Lerp(c.look, c.lookB, glide(f, s.a + 60, s.a + 190)) : c.look;
-  return {
-    pos: [pos[0] + kx, pos[1] + ky, pos[2] + kz],
-    look,
-    fov: c.fov,
-  };
-};
+const cameras=SHOTS.map(s=>makeShotCam({...s,...CAMS[s.id],kicks:KICKS,
+ framing:s.id>=8||s.id===6?"close":"medium",focus:f=>focusPointAt(f)
+}));
+export const camAt=(id:number,f:number):CamState=>cameras[id-1].camAt(f);
+export const cameraAt=(f:number)=>camAt(shotAt(f).id,f);
+export const engineDofAt=(f:number)=>cameras[shotAt(f).id-1].dofAt(f);
 
 /** Per-frame light: shot 3 stays in the normal cabin look until the BHADAAM power cut. */
 export const lightAt = (id: number, f: number): LightName => {
@@ -148,9 +129,39 @@ export const lightAt = (id: number, f: number): LightName => {
 // ---- DOF ----
 export type DofSpec = { focus: (f: number) => [number, number, number]; cInf: number };
 
-// Focus follows the live look target (which sits on the characters) so subjects are sharp from f = 0.
-export const dofAt = (f: number): DofSpec => {
-  const s = shotAt(f);
-  const look = camAt(s.id, f).look;
-  return { focus: () => [look[0], look[1], look[2]], cInf: 6 };
+// Legacy world-point interface follows the same active foreground character as engineDofAt.
+export const dofAt = (f: number): DofSpec => ({focus:focusPointAt,cInf:engineDofAt(f).cInf});
+
+export const HERO_SCALE=0.84,CRUSH_SCALE=0.78;
+export type ActorState={pos:V3;scale:number;opts:KidOpts};
+/** Frame-addressable staging shared by the world and projection checker. */
+export const actorsAt=(id:number,f:number):ActorState[]=>{
+ const hero:ActorState={pos:[-0.5,0,0.65],scale:HERO_SCALE,opts:{kind:"studentHero",expr:"shyBlush",mode:"stand",gaze:0.6}};
+ const crush:ActorState={pos:[0.5,0,0.25],scale:CRUSH_SCALE,opts:{kind:"crush",expr:"shyBlush",mode:"stand",gaze:-0.6}};
+ if(id===1){hero.opts.expr="panicShock";crush.opts.expr="gentleConcern";}
+ if(id===2){hero.pos=[-0.5,0,0.4];crush.pos=[lerp(1.6,0.5,glide(f,285,322)),0,0.05];crush.opts={...crush.opts,mode:"walk",walkP:(f%30)/30,actionP:1-glide(f,335,365),rainDrops:1};hero.opts.expr="panicShock";}
+ if(id===3){const j=0.18*Math.sin(Math.PI*clamp01((f-486)/18));hero.pos[1]=j;crush.pos[1]=j;hero.opts.expr=crush.opts.expr="panicShock";}
+ if(id===4){hero.pos=[-0.55,0,0.4];crush.pos=[0.55,0,0.05];hero.opts.mode=crush.opts.mode="phone";hero.opts.phoneP=crush.opts.phoneP=glide(f,770,815);hero.opts.sweat=1;}
+ if(id===5){hero.pos=[1.38,0,-1.25];crush.pos=[-0.45,0,-1.0];hero.opts={...hero.opts,mode:"point",pointP:glide(f,920,1000),gripX:145,gripY:565,gaze:0.8};crush.opts={...crush.opts,mode:"fixHair",fixHairP:0.4+0.6*glide(f,906,1050)};}
+ if(id===6){hero.pos=[0.12,0,0.65];crush.pos=[-0.9,0,-0.45];hero.opts={...hero.opts,mode:"stomachGrowl",growlP:glide(f,1345,1380),expr:f>=1355?"strainGrin":"shyBlush",sweat:1};crush.opts.expr="gentleConcern";}
+ if(id===7){const j=0.24*Math.sin(Math.PI*clamp01((f-1710)/22));hero.pos[1]=crush.pos[1]=j;hero.opts.expr=crush.opts.expr="panicShock";}
+ if(id>=8&&id<=10){
+  hero.pos=[-0.28,0,0.65];crush.pos=[lerp(0.85,0.3,glide(f,1818,1890)),0,0.55];
+  hero.opts={...hero.opts,mode:id===9?"comfort":"hug",comfortP:glide(f,2196,2260),hugP:glide(f,1850,1900),partnerSide:1,expr:id===8?"shyBlush":"gentleConcern",heartBeatP:id===8&&f>=1980?0.4+0.6*Math.sin(f*0.45)**2:0};
+  crush.opts={...crush.opts,mode:"hug",hugP:glide(f,1830,1890),partnerSide:-1,expr:id===10?"flirtyWink":"shyBlush"};
+ }
+ if(id===11){hero.pos=[-0.35,0,0.65];crush.pos=[0.35,0,0.4];
+  hero.opts={...hero.opts,mode:f<3206?"palmShow":"wave",palmP:glide(f,2980,3150),palmScale:1.35,palmText:f>=3021?"98XXXXXX??":undefined,expr:f>=3150?"panicShock":"shyBlush",waveP:(f%36)/36};
+  crush.opts={...crush.opts,mode:f<3206?"writePalm":"wave",writePalmP:glide(f,2835,3020),waveP:(f%40)/40,expr:"flirtyWink"};
+ }
+ return [hero,crush];
+};
+
+/** Actual foreground plane along the live view axis; look targets may sit on architecture. */
+export const focusPointAt=(f:number):V3=>{
+ const shot=shotAt(f),a=actorsAt(shot.id,f),c=cameraAt(f);
+ const forward=c.look.map((v,i)=>v-c.pos[i]);
+ const depth=(v:ActorState)=>v.pos.reduce((sum,x,i)=>sum+(x+(i===1?1.22:0)-c.pos[i])*forward[i],0);
+ const focus=shot.id===5||shot.id===6?a[0]:a.reduce((near,x)=>depth(x)<depth(near)?x:near);
+ return [focus.pos[0],focus.pos[1]+1.22,focus.pos[2]];
 };

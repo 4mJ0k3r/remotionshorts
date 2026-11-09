@@ -36,13 +36,24 @@ W, H = 180, 320
 raw = subprocess.run(["ffmpeg", "-v", "error", "-i", vid, "-vf", f"scale={W}:{H}:flags=area", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True).stdout
 F = np.frombuffer(raw, np.uint8).reshape(-1, H, W, 3)
 n = len(F)
-f32 = F.astype(np.float32) / 255
-luma = (f32 @ np.array([0.2126, 0.7152, 0.0722], np.float32))
-mx, mn = f32.max(-1), f32.min(-1)
-sat = np.where(mx > 0.06, (mx - mn) / np.maximum(mx, 1e-6), 0)
-L = luma.reshape(n, -1)
-stats = {"mean": L.mean(1), "std": L.std(1), "p2": np.percentile(L, 2, 1), "p98": np.percentile(L, 98, 1), "sat": sat.reshape(n, -1).mean(1)}
-diff = np.abs(np.diff(F.astype(np.int16), axis=0)).mean(axis=(1, 2, 3))
+# Keep statistics bounded to 60-frame chunks. Full-reel RGB/luma/saturation
+# float planes otherwise exceed laptop RAM; detection formulas are unchanged.
+parts = {k: [] for k in ("mean", "std", "p2", "p98", "sat")}
+for start in range(0, n, 60):
+    block = F[start:start + 60].astype(np.float32) / 255
+    luma = block @ np.array([0.2126, 0.7152, 0.0722], np.float32)
+    mx, mn = block.max(-1), block.min(-1)
+    sat = np.where(mx > 0.06, (mx - mn) / np.maximum(mx, 1e-6), 0)
+    L = luma.reshape(len(block), -1)
+    for key, value in {"mean": L.mean(1), "std": L.std(1), "p2": np.percentile(L, 2, 1), "p98": np.percentile(L, 98, 1), "sat": sat.reshape(len(block), -1).mean(1)}.items():
+        parts[key].append(value)
+    del block, luma, mx, mn, sat, L
+stats = {k: np.concatenate(v) for k, v in parts.items()}
+diff = np.empty(max(0, n - 1), dtype=np.float64)
+for start in range(0, n - 1, 60):
+    block = F[start:min(n, start + 61)].astype(np.int16)
+    d = np.abs(np.diff(block, axis=0)).mean(axis=(1, 2, 3))
+    diff[start:start + len(d)] = d
 med = np.array([np.median(diff[max(0, i - 8):i + 9]) for i in range(len(diff))])
 pops = [i + 1 for i in range(len(diff)) if diff[i] > 3 * med[i] + 1.0 and (i + 1) not in planned]
 black = [i for i in range(n) if stats["mean"][i] < 0.04]

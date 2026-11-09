@@ -11,6 +11,7 @@ import { HotelLiftShort, HOTEL_LIFT_FRAMES } from "./videos/hotel_lift/HotelLift
 import { MolassesTankShort, MOLASSES_TANK_FRAMES } from "./videos/molasses_tank/MolassesTank";
 import { InstantSkillShort, INSTANT_SKILL_FRAMES } from "./videos/instant_skill/InstantSkill";
 import { ElevatorCrushShort, ELEVATOR_CRUSH_FRAMES } from "./videos/elevator_crush/ElevatorCrush";
+import { CrushBathroomShort, CRUSH_BATHROOM_FRAMES } from "./videos/crush_bathroom/CrushBathroom";
 import { TestCanvas } from "./TestCanvas";
 
 export const RemotionRoot: React.FC = () => (
@@ -103,6 +104,7 @@ export const RemotionRoot: React.FC = () => (
       width={1080}
       height={1920}
     />
+    <Composition id="CrushBathroomShort" component={CrushBathroomShort} durationInFrames={CRUSH_BATHROOM_FRAMES} fps={30} width={1080} height={1920} />
     <Composition
       id="TestCanvas"
       component={TestCanvas}

@@ -1,74 +1,37 @@
-// Framing check for ElevatorCrushShort (SKILL.md Section 4.3): projects 3D points through camAt(id, f) -> u% / v%.
-// Main subjects (heads, hats, waists, key props) must sit inside 15..85 %, secondary points inside 5..95 %.
-// Also prints the camera yaw per shot so cut-to-cut angle changes can be checked.
-// Usage: node scripts/ec_frame.mjs [f,f,...]
-import * as S from "../src/videos/elevator_crush/story.ts";
-
-const ASPECT = 1080 / 1920;
-const SU = 0.00216, HS = 0.92, CS = 0.86;
-const sub = (a, b) => a.map((v, i) => v - b[i]);
-const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const norm = (a) => { const l = Math.hypot(...a); return a.map((v) => v / l); };
-const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const proj = (c, p) => {
-  const f = norm(sub(c.look, c.pos));
-  const r = norm([-f[2], 0, f[0]]);
-  const up = cross(r, f);
-  const d = sub(p, c.pos);
-  const z = dot(d, f);
-  const t = Math.tan((c.fov * Math.PI) / 360);
-  return [(dot(d, r) / (z * t * ASPECT) + 1) * 50, (1 - dot(d, up) / (z * t)) * 50, z];
+// Engine projection gate. At most TWO invocations per calibration task; never loosen bounds to chase grazes.
+import * as THREE from 'three';
+import {build} from 'esbuild';
+import fs from 'node:fs';
+const {outputFiles}=await build({entryPoints:['src/videos/elevator_crush/story.ts'],bundle:true,write:false,platform:'node',format:'esm'});
+const S=await import('data:text/javascript;base64,'+Buffer.from(outputFiles[0].text).toString('base64'));
+const main=[['hat',300,35],['headL',150,235],['headR',450,235],['chin',300,380]];
+const secondary=[['shoeL',240,952],['shoeR',360,952]];
+const project=(c,pos,scale,dx,dy)=>{
+ const camera=new THREE.PerspectiveCamera(c.fov,1080/1920,0.2,100);
+ camera.position.set(...c.pos);camera.lookAt(...c.look);camera.updateMatrixWorld();
+ const yaw=Math.atan2(c.pos[0]-pos[0],c.pos[2]-pos[2]),x=(dx-300)*0.00216*scale,y=(975-dy)*0.00216*scale;
+ const p=new THREE.Vector3(pos[0]+Math.cos(yaw)*x,pos[1]+y,pos[2]-Math.sin(yaw)*x).project(camera);
+ return [(p.x+1)*50,(1-p.y)*50];
 };
-const Y = (dy, s) => (975 - dy) * SU * s;
-// main = [x,z] of a character -> head / hat top / waist, and side edges of the body (secondary)
-const ch = (name, x, z, s, main = true) => ({
-  [`${name}Head`]: { p: [x, Y(235, s), z], main },
-  [`${name}Top`]: { p: [x, Y(70, s), z], main },
-  [`${name}Waist`]: { p: [x, Y(560, s), z], main: false },
-  [`${name}L`]: { p: [x - 0.16, Y(400, s), z], main: false },
-  [`${name}R`]: { p: [x + 0.16, Y(400, s), z], main: false },
-});
-
-const pts = (id, f) => {
-  switch (id) {
-    case 1: return { ...ch("hero", -0.4, 1.5, HS), ...ch("crush", 0.42, 1.15, CS), led: { p: [0, 2.95, -1.7], main: false } };
-    case 2: {
-      const o = { ...ch("hero", -0.45, 0.9, HS), doors: { p: [0, 1.2, -1.9], main: false }, window: { p: [0, 1.75, -4.74], main: false } };
-      if (f >= 335) Object.assign(o, ch("crush", 0.42, 1.25, CS));
-      return o;
-    }
-    case 3: return { ...ch("hero", -0.4, 1.3, HS), ...ch("crush", 0.42, 0.95, CS), sparkL: { p: [-0.55, 2.9, -1.55], main: false } };
-    case 4: return { ...ch("hero", -0.6, 0.7, HS), ...ch("crush", 0.6, 0.95, CS), phoneH: { p: [-0.6 + 108 * SU * HS, Y(410, HS), 0.7], main: true } };
-    case 5: {
-      const o = {};
-      if (f < 1020) Object.assign(o, ch("crush", -1.15, -0.8, CS));
-      if (f > 1060) Object.assign(o, ch("hero", 1.55, -1.4, HS), { knob: { p: [1.55 - 155 * SU * HS * 0.93, Y(565, HS), -1.6], main: true } });
-      return o;
-    }
-    case 6: return { ...ch("hero", 0.15, 1.35, HS), ...ch("crush", -0.55, 0.25, CS, false), growl: { p: [0.15 - 150 * SU * HS, Y(640, HS), 1.35], main: false } };
-    case 7: return { ...ch("hero", -0.42, 1.2, HS), ...ch("crush", 0.45, 0.9, CS), hatch: { p: [0, 3.8, 0.5], main: true } };
-    case 8: return { ...ch("hero", -0.15, 1.4, HS), ...ch("crush", f >= 1880 ? 0.2 : 0.75, f >= 1880 ? 1.58 : 1.1, CS) };
-    case 9: case 10: return { ...ch("hero", -0.17, 1.35, HS), ...ch("crush", 0.17, 1.58, CS) };
-    default: return { ...ch("hero", -0.22, 1.3, HS), ...ch("crush", 0.24, 1.5, CS), palm: { p: [-0.22 + 150 * SU * HS, Y(430, HS), 1.3], main: true } };
-  }
-};
-
-const frames = (process.argv[2] ?? "100,320,500,800,960,1100,1380,1720,1950,2350,2700,3150").split(",").map(Number);
-console.log("=== ElevatorCrushShort framing check (main 15..85 %, secondary 5..95 %) ===");
-let bad = 0;
-for (const f of frames) {
-  const s = S.shotAt(f);
-  const c = S.camAt(s.id, f);
-  const row = [];
-  for (const [name, { p, main }] of Object.entries(pts(s.id, f))) {
-    const [u, v, z] = proj(c, p);
-    const lo = main ? 15 : 5, hi = main ? 85 : 95;
-    const warn = z <= 0 || u < lo || u > hi || v < lo || v > hi ? (main ? "!!" : "!") : "";
-    if (warn === "!!") bad++;
-    row.push(`${name}:${u.toFixed(0)}/${v.toFixed(0)}${warn}`);
-  }
-  const yaw = (Math.atan2(c.look[0] - c.pos[0], -(c.look[2] - c.pos[2])) * 180) / Math.PI;
-  const dist = Math.hypot(...sub(c.look, c.pos));
-  console.log(`f${String(f).padStart(4)} s${String(s.id).padStart(2)} fov${c.fov} yaw${yaw.toFixed(0)} d${dist.toFixed(2)} | ${row.join(" ")}`);
+const frames=(process.argv[2]??'100,320,500,800,1050,1380,1720,1950,2350,2700,3150').split(',').map(Number);
+let worst=0,bad=0,held=0,steps=0;const rows=[];
+for(const f of frames){
+ const shot=S.shotAt(f),c=S.camAt(shot.id,f),actors=S.actorsAt(shot.id,f);const flags=[];let range=[100,0,100,0];
+ for(const [i,a] of actors.entries())for(const [name,dx,dy] of [...main,...secondary]){
+  const [u,v]=project(c,a.pos,a.scale,dx,dy),isMain=main.some(x=>x[0]===name),lo=isMain?15:5,hi=isMain?85:95;
+  const graze=Math.max(lo-u,u-hi,lo-v,v-hi,0);worst=Math.max(worst,graze);
+  if(graze>0){flags.push(`${i?'crush':'hero'}.${name} ${u.toFixed(1)}/${v.toFixed(1)} graze${graze.toFixed(1)}%`);if(graze>5)bad++;}
+  if(isMain){range=[Math.min(range[0],u),Math.max(range[1],u),Math.min(range[2],v),Math.max(range[3],v)];}
+ }
+ const row=`f${f} S${shot.id} FOV${c.fov} main u${range[0].toFixed(1)}..${range[1].toFixed(1)} v${range[2].toFixed(1)}..${range[3].toFixed(1)} ${flags.join('; ')||'PASS'}`;
+ console.log(row);rows.push(row);
 }
-console.log(`main-subject violations: ${bad}`);
+for(const shot of S.SHOTS)for(let f=shot.a+1;f<shot.b;f++){
+ const a=S.camAt(shot.id,f-1),b=S.camAt(shot.id,f);steps++;
+ if(a.pos.every((v,i)=>v===b.pos[i])&&a.look.every((v,i)=>v===b.look[i]))held++;
+ if(b.fov<38||b.fov>50)bad++;
+}
+const result={frames,rows,worstGrazePercent:worst,violationsOver5Percent:bad,heldCameraPercent:100*held/steps};
+fs.mkdirSync('out/elevator_crush',{recursive:true});const name=process.argv[3]??'out/elevator_crush/engine_framing_1.json';fs.writeFileSync(name,JSON.stringify(result,null,2));
+console.log(`Worst graze ${worst.toFixed(2)}%; >5% violations ${bad}; held camera transforms ${held}/${steps} (${result.heldCameraPercent.toFixed(2)}%)`);
+process.exitCode=bad?1:0;
