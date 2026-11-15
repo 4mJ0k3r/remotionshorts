@@ -3,12 +3,19 @@ name: blender-25d-story-video
 description: Build and audit flat cel characters in rich 3D Blender 4.2 sets, with beat-driven acting, verified contacts, stable silhouettes and staged visual QA.
 ---
 
-# Blender 2.5D Story Video — v3 visual contract
+# Blender 2.5D Story Video — v4 visual contract
 
 For Blender work, read the mandatory shared
 [cel studio contract](animated-3d-story-video/references/cel-studio-contract.md)
 before character, animation, camera or prop work. Its implementation recipes
 and acceptance gates also apply to the Remotion engine skill.
+
+For direction and reviewed examples, read
+[ANIMATION_STYLE_HANDOFF.md](ANIMATION_STYLE_HANDOFF.md). For Blender-specific
+construction and production mechanics, use
+[production recipes](animated-3d-story-video/references/production-recipes.md).
+The shared contract owns visual requirements; the recipes provide starting
+values and implementation examples, not a new story or compulsory prop list.
 
 The six laws in the shared contract's §7 are required for every build.
 
@@ -17,8 +24,10 @@ The six laws in the shared contract's §7 are required for every build.
    parallax within 20–25% of the head radius. Check side and high angles.
 2. Set shoulders at the torso edges. Route desk-action elbows and curve
    controls outward, forward and above the surface by 3 cm plus ink radius.
-   Keep raised elbows and hands outside 1.12 head radii and test the swept
-   ribbon against furniture and head masks through the entire action.
+   For gestures that should clear the face, keep raised elbows and hands
+   outside 1.12 head radii and test the swept ribbon against furniture/head
+   masks. Intentional mouth/temple contact uses explicit contact anchors and
+   foreground layers while protecting the eyes and other unrelated features.
 3. Paint 15% clipped cool crescents on heads and shirts. Weight ink toward
    the shaded edge and step paint-only variation on fours. Use horizontal
    lid masks on solid pupils and anchor ground shadows at the soles.
@@ -37,6 +46,10 @@ The six laws in the shared contract's §7 are required for every build.
   **not** saving a changed scene or rendering new stills/video.
 - Calibration-only ends with the inspected contact sheet. Do not launch a
   video render until that stage is authorized.
+- A request for calibration followed by a full render already authorizes
+  both stages. Inspect and correct the sheet, then continue without asking
+  for the same permission again. A later stop/partial-delivery instruction
+  overrides that plan. Documentation-only work does not resume rendering.
 - Record the exact input `.blend`, scripts, audio and delivered movie. Audit
   the delivered movie including patched ranges; the master alone does not
   prove what was delivered.
@@ -55,6 +68,14 @@ The six laws in the shared contract's §7 are required for every build.
   GPU **encoding**, not GPU frame rendering. Estimate a range from measured
   frames at the same scene/settings; never promise an exact render duration.
 - Never run headless Chromium rendering alongside Blender rendering.
+- Before any background Blender process, follow the shared
+  `.blender_gpu.lock` convention: claim exclusively with project/PID/owner,
+  wait for the current owner, and release only your own claim after its
+  child exits. Reuse the owner-checked launcher pattern in the recipes.
+  Never clear another project's lock or kill all Blender processes.
+- Use named version folders, a frozen render source and audio/source hashes.
+  Resume only matching, validated frames. A preview-sized master is still
+  preview-sized; report its actual dimensions and completed frame range.
 - During authorized builds, checkpoint before/after major stages and before
   rendering; preserve previous versions. Never save during read-only audits.
   Avoid destructive BMesh round trips on evaluated/modifier meshes. Use
@@ -74,12 +95,20 @@ The six laws in the shared contract's §7 are required for every build.
 - Torso/neck/shorts form a unified masked cel assembly. Patterns stay inside
   final outer ink; limb roots disappear under sleeves/body. Composite shared
   seams once. Ban independent breathing transforms at connected joints.
+- When a brief explicitly calls for 3D hips, a small matte rounded capsule
+  may sit under the cel hem. Orient its anatomical vertical axis correctly;
+  do not rotate a flattened ellipse into a visible horizontal saucer. It
+  must preserve the connected silhouette and useful visible leg length.
 - Draw a 15–20° three-quarter **pose** using asymmetric artwork and anchors;
   do not independently yaw a thick torso away from head and pants.
 - Rounded curved limbs terminate at anatomical anchors and rounded hands.
   Solve outward elbows; no rigid L arms or unintended face crossings.
 - Test emission-assisted cel color through final color management. Do not
   globally overexpose heads to hide lighting errors.
+- Use a coordinated expression tuple: brows, lids, pupils, mouth and cheek
+  treatment. Panic must not inherit a smiling speech sprite or cute blush.
+  Declare the visible mouth aperture's art-space anchor before attaching
+  a tongue, food or instrument; texture center alone is not that anchor.
 - Environments/fixtures remain detailed 3D: recessed openings, connected
   hardware, painterly materials, practical light, grounded shadows and depth.
   Cut away camera-facing walls when needed; use organic natural silhouettes.
@@ -107,7 +136,16 @@ The six laws in the shared contract's §7 are required for every build.
   holds are valid. Never add drift/shake to defeat frozen-frame metrics.
   ~1.7–2.5 s is an optional energetic pacing guide, not a compulsory interval.
 - Respect text preferences. “No subtitles” applies to final packaging too;
-  useful story HUD requires an explicit design decision.
+  default to no subtitles unless requested. HUD and scene lettering follow
+  the brief. “Zero text” also excludes baked image labels and overlays;
+  story symbols are allowed only when the brief permits them.
+- Evaluate every shot from declared state: visibility, scale, expression,
+  prop ownership, materials and FX. A hidden bed-shot leg must be restored
+  in the following standing shot. Check boundary frames and out-of-order
+  seeking, not only a chronological sheet.
+- Keep silhouette/crease ink on selected set meshes and props in the same
+  warm ink family as the cast. Preserve lit textures, shadows and DOF;
+  do not outline texture/grout detail. See the shared contract's set-ink recipe.
 
 ## 5. Mandatory acceptance gates
 
@@ -119,9 +157,10 @@ The six laws in the shared contract's §7 are required for every build.
    active-camera viewport capture at shot start/mid/end, transition extremes,
    contact start/peak/release and worst-angle joints. Apply the six §7 gates
    to the actual camera and composite. Label viewport captures;
-   they are not final renders. When authorized, inspect one calibration batch
-   and native-size joint/contact crops. One consolidated correction pass;
-   if a critical defect remains, report failure rather than waive it for a cap.
+   they are not final renders. When authorized, inspect a calibration batch
+   and native-size joint/contact crops. Consolidate corrections, then confirm
+   affected shots. Honor any user-imposed batch cap; without one, continue
+   focused corrections until critical defects clear. Never waive a defect.
 4. **Video, only when authorized:** render/assemble the approved source once.
    Record scene version, frame mapping and splice ranges. Verify the whole
    final movie against the approved source, including both sides of patches.
@@ -134,3 +173,9 @@ The six laws in the shared contract's §7 are required for every build.
 6. **Report honestly:** list inspected artifacts, defects and limits. A clean
    script or seven exact press peaks cannot certify visual quality between
    those peaks. No instruction guarantees first-pass perfection.
+7. **Stop and partial delivery:** on “give whatever is rendered,” stop only
+   this production's controller/worker, verify its children exited, and
+   release its owned lock. Validate the contiguous complete frame prefix,
+   mux precisely that duration with the matching audio prefix, decode-check
+   it, and deliver it promptly. Preserve resumable frames. Never call a
+   partial delivery a finished full movie or silently restart it afterward.

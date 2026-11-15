@@ -3,7 +3,7 @@ name: animated-3d-story-video
 description: Create and audit vertical shorts with flat expressive cel characters in detailed 3D worlds, using the shared Remotion engine or the requested Blender workflow and staged visual QA.
 ---
 
-# Animated 2.5D Story Video — v9
+# Animated 2.5D Story Video — v10
 
 House style: crisp hand-inked flat characters, dimensional painterly sets,
 purposeful acting and verified contacts. Read the mandatory shared
@@ -11,13 +11,21 @@ purposeful acting and verified contacts. Read the mandatory shared
 For Blender requests also follow [BLENDER_SKILL.md](../BLENDER_SKILL.md);
 do not substitute a Remotion scene.
 
+Read [the style handoff](../ANIMATION_STYLE_HANDOFF.md) for direction and
+reviewed examples. Blender implementation details live in
+[production recipes](references/production-recipes.md); Remotion continues
+to use `src/engine/`. Transfer the visual decisions between backends, not
+their axis conventions, shader parameters or project-specific frame numbers.
+
 Every backend must implement and verify the shared contract's six §7 laws.
 
 1. Keep an independent camera-facing head pivot. Slide eyes, brows and
    mouth together by up to 20–25% of head radius for painted turns.
 2. Anchor shoulders at the outer contour. Route desk-action controls
    outward and forward with 3 cm tabletop clearance plus ribbon radius.
-   Keep raised elbows and hands beyond 1.12 head radii. Test swept ink.
+   For clear-face gestures, keep raised elbows and hands beyond 1.12 head
+   radii. Test swept ink; deliberate mouth/temple contact uses named anchors
+   and explicit foreground layers instead of this clearance rule.
 3. Paint 15% clipped head/shirt crescents, use variable ink with paint-only
    four-frame variation and clip solid pupils with horizontal lid masks.
 4. Place tapered alpha-faded ribbons behind the face and resolve droplet
@@ -31,6 +39,10 @@ The latest user instruction controls scope. Audit-only means read/extract/
 document, without scene edits or renders. Calibration-only ends at the sheet.
 Respect “no subtitles” in preview and final output. Never render, upload or
 publish beyond the authorized stages.
+Default to no subtitles unless requested. A zero-text brief also suppresses
+HUD, scene lettering and baked texture labels; permitted story icons are
+separate from lettering. If sheet plus video is already requested, the
+sheet is a quality gate, not an extra permission gate. Respect a later stop.
 
 ## 1. Engine-first module architecture
 
@@ -79,6 +91,9 @@ audio, top HUD and optional browser-shaped Hindi subtitles. Do not duplicate.
 - Use asymmetric painted three-quarter poses and curved outward IK. Sitting
   lowers the connected upper body; arms attach to its current shoulders.
   Place pelvis on the actual support and keep feet supported.
+- Coordinate brows, lids, mouth and cheek treatment for each emotion. Lip-sync
+  must preserve the intended expression, rather than replacing panic with a
+  smile. Attach mouth props to the visible aperture's declared art anchor.
 - Interpolate `0..1` during defined events, then hold the exact endpoint.
   Resting mode selection is valid; unplanned popping is not. Ban unconditional
   sine/noise/root/head/body wobble.
@@ -109,9 +124,20 @@ audio, top HUD and optional browser-shaped Hindi subtitles. Do not duplicate.
   superseded by this contract; do not silently edit runtime during an audit.
 - Isolate shot sets in groups. Preserve prop identity/dimensions across
   macro shots; compare visible area as well as scale under occlusion.
+- Define a physical prop-size ledger and named surface grips before posing.
+  Validate apparent finger contact as well as grip-frame arithmetic. Scale
+  particles and accessories with their subject; an insert is preferable to
+  making a hand-held object table-sized just to read it.
+- Derive shot visibility and pose state from the requested frame. Reset
+  temporary hidden limbs, mouth scales, prop ownership and FX on transitions;
+  compare direct seeking with chronological evaluation.
 - Use meaningful near/mid/far layers, detailed openings, natural silhouettes
   and local contrast. No bare box room or flat-wall staging by default.
   Dark/emergency scenes are valid if faces, ink and contacts remain readable.
+- Ink world silhouettes and hard creases in the cast's warm near-black family,
+  with thinner screen-space lines and depth falloff. Do not ink texture detail.
+  Keep the lit render underneath and inspect a medium/close comparison when
+  introducing or changing the line pass.
 - Default engine FOV 38–50°. Pull back/reframe instead of fisheye. Check
   projected subject/prop bounds at action extremes.
 - Camera moves serve beats; locked holds are valid. No per-frame motion floor,
@@ -131,16 +157,18 @@ browser HarfBuzz and Noto Sans Devanagari/Nirmala UI/Mangal fallbacks. HUD at
 top 10% serves the story and avoids faces/hands/contact points.
 
 1. **Build/check:** implement authorized changes; `npx tsc --noEmit` must
-   exit 0 for TypeScript work. At most two projection passes. Main subjects
+   exit 0 for TypeScript work. Check projections before expensive renders
+   and consolidate framing corrections; honor explicit pass limits. Main subjects
    usually fit 15–85% bounds, secondary 5–95%; intentional close-up crops are
    valid. Never waive a clipped face/hand/story prop as a minor border graze.
 2. **Calibration:** when authorized, batch all critical shot/transition/
    contact frames in one `bridge-stills.mjs` invocation, usually scale 0.5,
    subtitles off. Tile fresh `sheet_v1.jpg`; inspect native-size crops too.
-   One consolidated fix pass, at most one confirmation batch with a fresh
-   filename. Inspect all six §7 gates at the relevant camera and pose
-   extremes. If a critical gate still fails, report it and stop before video.
-   Batch caps never waive defects. Show the sheet at the user's stopping point.
+   Consolidate corrections and confirm affected frames with a fresh filename.
+   Inspect all six §7 gates at the relevant camera and pose extremes. Honor
+   any explicit batch cap; otherwise continue focused fixes until critical
+   gates clear. Batch caps never waive defects. Show the sheet at the user's
+   stopping point; continue to already-authorized video after it passes.
 3. **Video:** only when authorized, render the approved review once. Verify
    discrete GPU use and measured representative throughput, not a universal
    frames/min threshold. Isolate Blender/Chromium rendering. Review default
@@ -152,3 +180,8 @@ top 10% serves the story and avoids faces/hands/contact points.
    preserve raw results and narrow reasons. Ban blanket exclusions or adding
    noise to lower held-frame counts. No universal held-frame/luma quotas.
    A clean pixel-stat report is not a visual pass; report remaining defects.
+5. **Version/resume/stop:** freeze source and audio identity, isolate each
+   version and resolution, and validate cached frames before reuse. On a
+   partial-delivery request, stop the owned job and package only its complete
+   contiguous prefix with matching audio. State duration/resolution, preserve
+   resumable output, and do not resume until requested.

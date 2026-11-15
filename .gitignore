@@ -9,6 +9,15 @@ build/
 out/
 output/
 backup/
+renders/
+/refs/
+/example-animation/
+/.codex/
+/.blender_gpu.lock
+.venv/
+.env
+.env.*
+!.env.example
 *.[mM][pP]4
 *.[mM][oO][vV]
 *.webm

@@ -4,6 +4,11 @@ Mandatory for Blender and Remotion skills. This specifies construction and
 acceptance, not another creator's private rig. User scope/style wins. Never
 execute render recipes during analysis-only work. Use the requested backend.
 
+Use [production recipes](production-recipes.md) for Blender implementation
+details and [the style handoff](../../ANIMATION_STYLE_HANDOFF.md) for reviewed
+examples. Numeric examples are calibration starting points; preserve the
+current brief's anatomy, story, text policy, resolution and permitted stages.
+
 ## 1. One coherent flat silhouette
 
 **Banned:** block/cylinder torsos paired with flat limbs; thick visible shell
@@ -74,6 +79,12 @@ silhouette once. No outlined hidden sockets or shirt-only stretching away
 from pants. Layer depth offsets must be invisible in the worst camera view;
 there is no universal centimeter offset.
 
+A brief may call for a shallow matte 3D pelvis under the flat torso. Keep it
+anatomically rounded, aligned with the body, covered at the hem and connected
+to the legs. It is not permission for a volumetric shirt or a horizontal hip
+platter. Check visible leg proportions after clothing and furniture occlusion,
+not merely bone length in the script.
+
 Limbs are flat ribbons/cel strokes, rounded caps and subtle static pressure
 variation. Two-bone IK shares shoulder/hip anchors, outward elbow poles and
 clamped reach; round the curve around the solved elbow, not a rigid right
@@ -141,6 +152,17 @@ Narration/internal thought may keep a held mouth only when labeled that way.
 Smile/teeth expressions need speaking variants. Blinks are deterministic
 with varied intervals; do not synchronize all actors or move the skull.
 
+Expressions are coordinated sets of brows, lid aperture, gaze, mouth and
+cheek treatment. Select a fear-compatible speaking mouth for fear; remove
+incompatible smile/blush layers. Validate the full expression at the actual
+small-screen size, including silent and speaking extremes.
+
+Each frame must establish its shot state independently. Temporary blanket
+occlusion, hidden legs, mouth scale, accessory scale, material tint and prop
+ownership cannot leak into the next shot. Evaluate cut−1/cut/cut+1 and compare
+direct seeks with sequential playback. Cache visibility only if nested groups
+and manual per-object overrides invalidate that cache correctly.
+
 Brows/lids/pupils/teeth change on beats. Emotional tint affects cream without
 tinting ink/eyes. Event-gated sweat/tears/steam follow arcs, fade to zero before
 reset and preserve readability. No mandatory hop at every expression swap.
@@ -162,6 +184,13 @@ target_in_card = card.matrix_world.inverted() @ target_world
 prop.matrix_world = hand_grip_world @ prop_grip_local.inverted()
 ```
 
+Place `prop_grip_local` on the actual handle or barrel surface, including its
+orientation and inherited scale. Zero distance between the hand and an arbitrary
+prop origin can still produce a visibly floating prop. Check the finger pads,
+front/back wrap, surface normals and their projected overlap in rendered crops.
+If IK clamps an unreachable target, audit the resulting hand rather than the
+requested target and move the actor/support into reach.
+
 If unreachable/out of the flat card plane, reposition actor/shot or stage a
 coherent arm layer; do not teleport the fixture. Image X/Y alone is not
 contact: verify depth, normal, fingertip and readable occlusion. Front
@@ -179,6 +208,17 @@ Solve thighs, knees and floor-supported feet from it, not an arbitrary root
 height. Correctly occlude far/near legs around the seat. A ground shadow does
 not repair hovering hips.
 
+For a bed pose, derive the supported pelvis and recline from the mattress,
+headboard and pillows. Drape real cloth geometry or an equivalent depth-aware
+layer over the lap/lower torso; hiding legs alone is not a tucked-in pose.
+Retain correct contact underneath and restore hidden parts on the next shot.
+
+Mouth attachments use the visible aperture's art/UV anchor, transformed through
+the evaluated face group and head billboard. Widen the mouth sprite to admit
+the prop before extending it. Inspect first emergence, peaks and retraction;
+no tongue/tool may originate at a cheek or detached sprite center. Use a
+continuous rounded tongue silhouette, with accessories attached to its tip.
+
 ## 4. Depth, identity and door mechanics
 
 Declare near/far order for every overlapping body/prop region. Check world
@@ -193,6 +233,14 @@ water or a low rim angle can make a fixed-size object look shrunken. Diagnose
 scale vs occlusion vs camera before scaling. Floating objects follow support
 surfaces when intended; sinking needs a visible story event. Water stays
 inside its cavity and never bleeds across isolated sets.
+
+Record dimensions of the entire prop assembly, including parent scale,
+leaves/lids/handles and recurring copies. Distinguish physical scale from an
+explicitly magnified macro set. Choose grain, droplet and accessory size relative
+to the subject: grains appropriate in a macro insert can bury a normal fruit.
+Persistent deposits, damage, flags and stains need lifetimes spanning their
+story interval; do not clear them with a general per-frame FX reset. Transition
+between falling and deposited states without visible reset teleports.
 
 ```python
 # Blender Z-up: build hinge-local, leaf extends toward the latch.
@@ -220,6 +268,22 @@ Use near/mid/far depth, recessed openings, connected fixtures, architectural
 trim and painterly surface variation, soft grounded shadows and practical
 lights. Avoid bare box rooms, unmotivated flat-wall staging, uniform white/
 beige wash or lost dark ink. Mood shifts are valid; local contrast must read.
+
+Carry the warm character ink into selected set/prop silhouettes, borders and
+hard creases. At 1080-wide delivery, roughly 3–4 px outer set lines and half-width
+inner creases are useful starting points, subordinate to the cast. Preserve
+screen-space weight across medium/close views, fade distant lines, and exclude
+texture normals, brick mortar and grout. Keep textured lighting, contact shadows,
+optical depth and restrained bloom underneath. A geometry edge pass must not
+turn every surface texture into a wireframe.
+
+Stage the whole camera frustum inside finished architecture or an authored
+cutaway/backdrop. Verify high angles and frame corners against actual wall and
+ceiling extents. A universal wall height or a sky color does not prove enclosure.
+For a face plus barrier/prop action, allocate separate readable screen regions
+and inspect the swept approach as well as the final pose. If literal coordinates
+collide, resolve units/space and reframe or adjust legal staging; do not knowingly
+cover the face to match an inconsistent coordinate list.
 
 Optical focus is `dot(subject_position-camera_position, camera_forward)`.
 Track active face/contact plane, not back wall/old look target. Test geometry
@@ -283,6 +347,15 @@ If a time/batch cap is reached with a critical failure, stop before the next
 stage and report it. Evidence gates prevent declaring known defects complete;
 instructions alone cannot guarantee first-pass perfection.
 
+Save/reopen is part of acceptance: preserve dynamically selected materials,
+images and runtime dependencies, bootstrap the saved scene, and inspect that
+reopened source. Blender may discard unreferenced expression materials, and
+frame-handler exceptions may be logged while rendering a stale pose. Make the
+worker fail on those errors rather than treating a completed PNG as success.
+Frozen source/audio identity must match resumed frames. Keep version/resolution
+folders separate. A contact sheet can cover an ending that has never been
+rendered in motion; label that distinction and the delivered frame range.
+
 ## 7. Six mandatory visual laws and recipes
 
 ### 7.1 Camera-facing heads and painted parallax
@@ -339,6 +412,12 @@ volumes, including where a curve bows between controls. If a reach fails,
 adjust the elbow route or rest pose and solve again with the same anchors.
 Approve approach, contact, release and transitions at every evaluated
 frame, with subframe checks when motion blur is enabled.
+
+This clearance rule is for gestures that must stay outside the face. An
+intentional temple clutch, eating action or examination instead uses a named
+surface/aperture contact and explicit front/back layers. Keep unrelated eyes,
+brows and the readable action clear; do not make the intended contact float
+outside the head just to satisfy a generic radius threshold.
 
 ### 7.3 Crescent shading, ink on fours and eyelid masks
 

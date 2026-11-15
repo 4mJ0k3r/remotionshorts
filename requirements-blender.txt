@@ -1,0 +1,3 @@
+# Host Python helpers; bpy/mathutils come from Blender's own Python.
+numpy>=1.24
+Pillow>=10

@@ -6,13 +6,48 @@ Real 3D sets are built in `three.js` via `@remotion/three`, `@react-three/fiber`
 
 New Remotion shorts share the studio engine in `src/engine/`. Each short supplies its own story, sets, and frame-driven world.
 
+## Start here with another AI agent
+
+Clone this repository and tell the agent to read [AGENTS.md](AGENTS.md) and
+[ANIMATION_STYLE_HANDOFF.md](ANIMATION_STYLE_HANDOFF.md) first. Supply the new
+story, voice track, desired renderer, text preferences and permitted render
+stage. The handoff links to the current contracts, reusable source and review
+process. Code and guidance are included; private reference clips, narration,
+Blender binaries and generated media are deliberately excluded.
+
+```bash
+git clone https://github.com/4mJ0k3r/remotionshorts.git
+cd remotionshorts
+```
+
+Use the Remotion quick start below for a silent baseline without external
+assets. For Blender, install Blender 4.2 LTS and FFmpeg separately, then
+`python -m pip install -r requirements-blender.txt`. The production launchers
+currently target Windows/PowerShell. The latest example accepts explicit paths:
+
+```powershell
+$env:BLENDER_EXE = "C:/Program Files/Blender Foundation/Blender 4.2/blender.exe"
+$env:NARRATION_AUDIO = "C:/path/to/your/narration.mp3"
+# Use only when building this example is the requested task:
+python scripts/sendha_namak_science/run.py build
+python scripts/sendha_namak_science/run.py sheet
+```
+
+The example's timing is specific to its 57.6-second story. A new short needs
+its own beat map and audio analysis; cloning does not authorize starting an
+old render. Older example launchers may contain machine-specific paths—adapt
+them before execution. The recipes distinguish reference code from verified
+output, and a text-only agent can plan/critique without claiming to render.
+
 ## Where the docs are
 
 | File | What it is |
 |---|---|
-| [Remotion skill v9](animated-3d-story-video/SKILL.md) | Shared-engine architecture and the Remotion build and review workflow. |
-| [Blender skill v3](BLENDER_SKILL.md) | Blender scene setup, rigging, contact checks, and render workflow. |
+| [Remotion skill v10](animated-3d-story-video/SKILL.md) | Shared-engine architecture and the Remotion build and review workflow. |
+| [Blender skill v4](BLENDER_SKILL.md) | Blender scene setup, rigging, contact checks, and render workflow. |
 | [Cel studio contract](animated-3d-story-video/references/cel-studio-contract.md) | Shared visual and acceptance rules for both workflows. |
+| [Style handoff](ANIMATION_STYLE_HANDOFF.md) | Directing priorities, available visual references and what to give another agent. |
+| [Production recipes](animated-3d-story-video/references/production-recipes.md) | Billboard axes, surface grips, mouth anchors, shot resets and resumable delivery. |
 | [Project manifest](PROJECT_MANIFEST.md) | Runtime stack, rendering conventions, toolchain, and privacy rules. |
 
 ## Shared engine
