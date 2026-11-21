@@ -1,9 +1,9 @@
 ---
 name: blender-25d-story-video
-description: Build and audit flat cel characters in rich 3D Blender 4.2 sets, with beat-driven acting, verified contacts, stable silhouettes and staged visual QA.
+description: Build and audit 3D-lit yet 2D-clean cel characters in rich Blender 4.2 sets, with beat-driven acting, verified contacts, stable silhouettes and staged visual QA.
 ---
 
-# Blender 2.5D Story Video — v4 visual contract
+# Blender 2.5D Story Video — v5 visual contract
 
 For Blender work, read the mandatory shared
 [cel studio contract](animated-3d-story-video/references/cel-studio-contract.md)
@@ -19,18 +19,19 @@ values and implementation examples, not a new story or compulsory prop list.
 
 The six laws in the shared contract's §7 are required for every build.
 
-1. Give heads an independent camera-facing pivot using Damped Track or
-   camera-relative Locked Track. Turn the face through grouped feature
-   parallax within 20–25% of the head radius. Check side and high angles.
+1. Give heads an independent pose pivot and conformed facial decals. Smooth
+   3D heads retain authored contours and real hat-brim shadows. The optional
+   flat-card route uses camera-facing tracking and grouped feature parallax
+   within 20–25% of head radius. Check side and high angles.
 2. Set shoulders at the torso edges. Route desk-action elbows and curve
    controls outward, forward and above the surface by 3 cm plus ink radius.
    For gestures that should clear the face, keep raised elbows and hands
    outside 1.12 head radii and test the swept ribbon against furniture/head
    masks. Intentional mouth/temple contact uses explicit contact anchors and
    foreground layers while protecting the eyes and other unrelated features.
-3. Paint 15% clipped cool crescents on heads and shirts. Weight ink toward
-   the shaded edge and step paint-only variation on fours. Use horizontal
-   lid masks on solid pupils and anchor ground shadows at the soles.
+3. Use light-driven cool shadows and warm cream faces, including actual
+   hat-brim occlusion. For flat-card projects only, use 15% clipped crescents.
+   Keep ink stable and pupils crisp; ground shadows at the soles.
 4. Use tapered alpha-blended ribbons behind the cast and attach sweat and
    tears to temple sockets until the authored release.
 5. Cast diagonal window-bar shadows with a warm Sun or Spot, ground each
@@ -81,26 +82,27 @@ The six laws in the shared contract's §7 are required for every build.
   Avoid destructive BMesh round trips on evaluated/modifier meshes. Use
   supported evaluated-mesh APIs on copies with cleanup or configure modifiers.
 
-## 3. Flat cel cast in a dimensional world
+## 3. 3D-lit yet 2D-clean cel cast
 
-- Heads, torso, shorts, neck, limbs, hands and held cel props share a coherent
-  flat drawing style. Ban volumetric block/cylinder shirts and thick shell
-  rims. The old blanket **0.025 m Solidify recipe is withdrawn**. Prefer
-  alpha-cut planes/ribbons with no visible sidewall. A separate shadow caster
-  may ground a cel without thickening its visible edge.
-- Use a stable organic cream head, variable dark marker boundary, interior
-  cool shadow crescent, solid pupils and no white alpha halo. No continuously
-  changing contour geometry or head scale. Apply four-frame ink variation
-  only inside the fixed alpha boundary as specified in §7.3.
-- Torso/neck/shorts form a unified masked cel assembly. Patterns stay inside
-  final outer ink; limb roots disappear under sleeves/body. Composite shared
-  seams once. Ban independent breathing transforms at connected joints.
-- When a brief explicitly calls for 3D hips, a small matte rounded capsule
-  may sit under the cel hem. Orient its anatomical vertical axis correctly;
-  do not rotate a flattened ellipse into a visible horizontal saucer. It
-  must preserve the connected silhouette and useful visible leg length.
-- Draw a 15–20° three-quarter **pose** using asymmetric artwork and anchors;
-  do not independently yaw a thick torso away from head and pants.
+- Default to smooth 48-segment 3D heads with an authored rough-round contour,
+  conformed 2D eyes/brows/mouth decals, and actual hat-brim cast shadows.
+  Preserve approved character proportions; no automatic spherical redesign,
+  random head noise, geometry boil, or white alpha fringe.
+- Use smooth 2.5D contoured torsos, flush beveled vest panels, hats and props;
+  smooth continuous curved limbs, not stacked/ribbed capsules. Connect neck,
+  shoulders and hips through poses. Patterns stay within garment boundaries.
+  The blanket **0.025 m Solidify recipe remains withdrawn**.
+- Use dark inverted-hull ink #16121C/#292337, distance/lens compensated and
+  clamped to about 1.5–3px at 360p. Continuous dark sidewall shading is a
+  separate surface/lighting treatment, never an inflated outline. Ink shells
+  never cast shadows. Retain real receiving/casting surfaces beneath them.
+- Keep upper forehead under the hat cool (#C4C8EA) while cheeks/jaw stay
+  warm (#FDF5EF). Calibrate the received-light ramp and actual brim occlusion,
+  not a global blue chin crescent. §7.3 covers the optional flat-card route.
+- Flat alpha-card/ribbon assemblies remain valid for existing projects or
+  explicit briefs. Their overlap/mask and billboard recipes are conditional,
+  not a ban on 3D heads or contoured shirts. Three-quarter 3D poses turn the
+  connected rig and keep decals attached to the evaluated face surface.
 - Rounded curved limbs terminate at anatomical anchors and rounded hands.
   Solve outward elbows; no rigid L arms or unintended face crossings.
 - Test emission-assisted cel color through final color management. Do not
@@ -179,3 +181,33 @@ The six laws in the shared contract's §7 are required for every build.
    mux precisely that duration with the matching audio prefix, decode-check
    it, and deliver it promptly. Preserve resumable frames. Never call a
    partial delivery a finished full movie or silently restart it afterward.
+
+## 6. Shared baseline for new original Shorts
+
+Use [scripts/ricks_lookdev.py](scripts/ricks_lookdev.py) on a new scene or
+versioned working copy; do not paste a previous story's coordinates/runtime.
+Use [shorts_preflight.py](scripts/shorts_preflight.py) and the mandatory
+[contract §8](animated-3d-story-video/references/cel-studio-contract.md#8-shared-blender-production-baseline).
+The [pipeline guide](scripts/SHORTS_PIPELINE.md) gives executable calls and
+the QA/calibration manifest. Importing a library alone does not run a gate.
+
+- Baseline: Standard/None, exposure 0, gamma 1; EEVEE Next, RT off, 32 samples,
+  shadow pool 512, 2 rays/6 steps, bokeh jitter and motion blur off. Use the
+  gradient/mist/glow and 4:1 rig in the shared module. Keep one shadowed Sun.
+- Sanitize imported CC0/free assets before calibration: props <=512px,
+  hero sets <=1024px; target <150k visible evaluated triangles, hard <200k.
+  Record license/source. Exclude actors from destructive decimation.
+- Before full render: 12 distinct native-frame GPU benchmark, p95 <=1.8s,
+  max <=2.0s, sampled board VRAM <=3.3 GiB; unknown VRAM is unverified.
+  Tune samples/resources only with fresh calibration and measurements.
+- Check >=0.30m camera clearance on every frame, explicit cut destinations,
+  continuous transform/lens/focus junctions, projected bounds, projectile
+  oblique aspect and nose aligned to 3D velocity. Inspect pixel evidence too.
+- Use intermediate-junction calibration and brim/grip close-ups, then
+  `short_qa.py --strict` with declared cuts, continuous junctions and static
+  or tracked shadow ROIs. A missing ROI is unverified, not a pass.
+- Preserve supplied audio. For newly produced narration/mixes target dry
+  compressed VO ~210–230 WPM, mix -14.3 LUFS, <=-3.0 dBTP and narrow LRA.
+  Captions remain opt-in: actual Bold white sans-serif, post-grade FFmpeg
+  burn, ~20px glyph height at 360p (~60–84px at 1080p), ~2px/6px black
+  stroke, optical center y=70.5%, <=1 frame sync. See contract §8 for limits.

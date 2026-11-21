@@ -1,0 +1,15 @@
+# Gold Mine Salting V2
+
+V2 is isolated from `v01`; sources are here, output under `renders/gold_mine_salting_v2`. Narration, audio envelope and final mix are copied byte-for-byte from V1 and verified against `preserved_inputs.json`. Output is 301 frames, 1080×1920, 30 fps, 10.033 seconds. The supplied 10.0078125-second recording ends after “it's called”; the user chose the unchanged recording and a visual wink payoff. No subtitles.
+
+Changes: full-face received-light four-stop cel shaders; #16121C distance-compensated shadow-free hulls on cast and props; recessed faceted crater with irregular branch fractures and shrinking/receding gold at f121–181; world-space multiscale rocky Noise/Voronoi surfaces; deep timber passage and lamps; clean candle self-shadow policy; slimmer shotgun and orange/gold muzzle flame; dark mug-gripping fingers; curved fringe; clear lap; Buddy suppressed completely in closing shot. Gun firing remains f59–62 to preserve the audio cue. The requested f35 calibration shows its angled barrel setup.
+
+`build.py` uses the shared `ricks_lookdev.py` baseline and original geometry helpers. Runtime is frame-addressable and packed with the look module, audio envelope and set ink in the saved blend. Run packed `START_HERE.py` after reopening to install timeline evaluation. Workers explicitly bootstrap it and abort on handler errors. Source and audio hashes freeze before rendering; cached PNG dimensions and integrity are checked before resume.
+
+The GPU launcher claims `.blender_gpu.lock` exclusively, records owner/PID/project, checks other background Blender processes and monitors board VRAM. It only releases its own claim after its worker exits. No unrelated productions or shared pipeline modules are changed.
+
+Performance evidence retains all attempts: benchmark_a (12 samples) narrowly failed shared p95, benchmark_b (10 samples) failed, benchmark_c (8 samples) narrowly failed; geometry-preserving bulk outline updates and 6 samples produced benchmark_d PASS: p95 1.2976 s, max 1.3436 s, sampled board VRAM 1.6348 GiB, actual RTX 3050 renderer. Native images and a fresh calibration sheet were reviewed at those final settings. This is benchmark evidence, not a guarantee for every full-pass frame.
+
+Camera/contact evidence: `camera_gate.json` checks all301 frames and the declared cuts; raw signed-normal false positives are retained and resolved using evaluated triangle/ray evidence. `all_geometry_clearance.json` additionally checks all456 visible solid geometry objects with conservative evaluated bounds (POLY curves use their actual control points plus bevel margin), minimum lower-bound clearance 0.47936 m. Semantic anchor error is 0; native finger/prop crops complement this arithmetic. Both real hat shadows were probed with headwear on/off; no painted forehead shadow is substituted for occlusion.
+
+Final source identity, rendering measurements, delivered-mux QA and review limits are recorded in the output folder. Do not reuse V1 media as evidence for V2.

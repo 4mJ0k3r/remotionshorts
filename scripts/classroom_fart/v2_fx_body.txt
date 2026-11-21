@@ -1,0 +1,29 @@
+    active_pressure=action in ['grip','sigh']
+    pressure_pos=V((0,CHAIR_Y,SEAT+.03))
+    for i,p in enumerate(PRESSURE):
+        setloc(p,pressure_pos,f);scale(p,(.13-i*.025,.11-i*.02,.018-i*.004) if active_pressure else 0,f)
+        p.color=(1,1,1,1 if active_pressure else 0);p.keyframe_insert('color',index=3,frame=f)
+    gaspos=pressure_pos if active_pressure else V(pose['hip'])+V((0,-.12,.04))
+    if action=='nose':gaspos=head+V((.25,.12,-.12))
+    setloc(GASLIGHT,gaspos,f)
+    GASLIGHT.data.energy=12 if active_pressure or action=='release' else (45+18*math.sin((f-1299)*math.tau/18)) if action=='nose' else 0
+    GASLIGHT.data.keyframe_insert('energy',frame=f)
+    for i,p in enumerate(STREAM):
+        on=0;pos=V(pose['hip'])+V((0,-.12,0));pos.z=SEAT+.04;r=.07
+        if action=='release' and f>=1085:
+            age=f-1085-i*4
+            if age>=0:
+                t=age%64;u=t/64;on=ease(0,8,t)*(1-ease(48,64,t))*(1-ease(1204,1215,f))
+                pos+=V((.035*math.sin(i*1.7+u*2),-.85*u,.17*u));r=.07+.075*u
+        p.location=pos;p.rotation_euler=CAM.rotation_euler;p.scale=(r,r*(1.1+.2*math.sin(i)),1) if on else (0,0,0)
+        p.color=(1,1,1,on)
+        for path in ['location','rotation_euler','scale']:key(p,path,f)
+        p.keyframe_insert('color',index=3,frame=f)
+    for i,p in enumerate(HAZE):
+        on=0;r=.25+.2*((i*7)%16)/15;age=f-1299-i*3;u=max(0,min(1,age/75))
+        side=-1 if i%2==0 else 1;foreground=i%4<2
+        pos=V((side*(.45+.14*((i//2)%4)),(.55+.10*(i%3)) if foreground else (-.45-.15*(i%3)),(DESK_TOP+.06 if foreground else .69)+.18*u))
+        if action=='nose' and age>=0:on=ease(0,12,age)*(1-ease(1400,1410,f))
+        p.location=pos;p.rotation_euler=CAM.rotation_euler;p.scale=(r,r*.70,1) if on else (0,0,0);p.color=(1,1,1,on)
+        for path in ['location','rotation_euler','scale']:key(p,path,f)
+        p.keyframe_insert('color',index=3,frame=f)

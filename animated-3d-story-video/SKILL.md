@@ -1,11 +1,11 @@
 ---
 name: animated-3d-story-video
-description: Create and audit vertical shorts with flat expressive cel characters in detailed 3D worlds, using the shared Remotion engine or the requested Blender workflow and staged visual QA.
+description: Create and audit vertical shorts with expressive 3D-lit yet 2D-clean cel characters in detailed worlds, using the shared Remotion engine or the requested Blender workflow and staged visual QA.
 ---
 
-# Animated 2.5D Story Video — v10
+# Animated 2.5D Story Video — v11
 
-House style: crisp hand-inked flat characters, dimensional painterly sets,
+House style: crisp hand-inked cel silhouettes, dimensional painterly sets,
 purposeful acting and verified contacts. Read the mandatory shared
 [cel studio contract](references/cel-studio-contract.md) for recipes and gates.
 For Blender requests also follow [BLENDER_SKILL.md](../BLENDER_SKILL.md);
@@ -19,15 +19,17 @@ their axis conventions, shader parameters or project-specific frame numbers.
 
 Every backend must implement and verify the shared contract's six §7 laws.
 
-1. Keep an independent camera-facing head pivot. Slide eyes, brows and
-   mouth together by up to 20–25% of head radius for painted turns.
+1. Keep an independent head pivot and surface-conformed facial decals on
+   smooth 3D heads. For the optional flat-card backend, use camera-facing
+   heads and grouped painted turns within 20–25% of head radius.
 2. Anchor shoulders at the outer contour. Route desk-action controls
    outward and forward with 3 cm tabletop clearance plus ribbon radius.
    For clear-face gestures, keep raised elbows and hands beyond 1.12 head
    radii. Test swept ink; deliberate mouth/temple contact uses named anchors
    and explicit foreground layers instead of this clearance rule.
-3. Paint 15% clipped head/shirt crescents, use variable ink with paint-only
-   four-frame variation and clip solid pupils with horizontal lid masks.
+3. Use received-light cel shadows, real hat-brim occlusion, stable bold ink
+   and crisp pupils. The optional flat-card route uses 15% clipped crescents
+   and paint-only variation; never animate contour noise.
 4. Place tapered alpha-faded ribbons behind the face and resolve droplet
    attachment and release from temple sockets in the current pose.
 5. Cast diagonal window shadows and ground furniture and feet. Animate
@@ -80,6 +82,13 @@ audio, top HUD and optional browser-shaped Hindi subtitles. Do not duplicate.
 
 ## 2. Character and motion contract
 
+Blender defaults to smooth 48-segment heads, conformed decals, contoured
+2.5D clothing/props and shadow-free inverted-hull ink #16121C/#292337
+(1.5–3px at 360p). Separate dark sidewalls from outline thickness. Use
+`../scripts/ricks_lookdev.py`; full requirements are in contract §8.
+The following design-box/mask/cache details describe the existing Remotion
+flat-card backend, not restrictions on Blender geometry.
+
 - Engine design box: `600×1000`, `SU = 0.00216`, `PIV = 975`, soles `y = 952`,
   standing head `(300,235)`, `HEAD_R = 145`, cream `#fdfaf2`, ink `#351f22`,
   compact bean torso. Read the actual shoulder/hip anchors before changing
@@ -87,7 +96,8 @@ audio, top HUD and optional browser-shaped Hindi subtitles. Do not duplicate.
 - Stable organic skull and pressure-varying boundary: head base width 16.5,
   garment/hair width 12.5 design units and thinner inner details.
   Four-frame ink variation stays inside fixed silhouette alpha. Ban
-  contour motion, shine dots, white halo, joint stretching and 3D shirts.
+  contour motion, white halo and joint stretching. Preserve this backend
+  geometry until a dimensional implementation is explicitly authorized.
 - Use asymmetric painted three-quarter poses and curved outward IK. Sitting
   lowers the connected upper body; arms attach to its current shoulders.
   Place pelvis on the actual support and keep feet supported.
@@ -152,8 +162,10 @@ audio, top HUD and optional browser-shaped Hindi subtitles. Do not duplicate.
 Use supplied prompts/audio directly. For an open topic propose ideas and a
 shot table before building. Match real sentence/beat boundaries; word-rate
 estimates are provisional. Label spoken/internal/narrator cues. Do not add
-subtitles because audio is missing. If enabled, one line at bottom 18% with
-browser HarfBuzz and Noto Sans Devanagari/Nirmala UI/Mangal fallbacks. HUD at
+subtitles because audio is missing. When requested, place captions at optical
+center y=70.5%, using the actual Bold sans-serif font and proper Indic shaping.
+Blender captions are burned after grading with FFmpeg; Remotion uses browser
+HarfBuzz with an actual Bold Noto Sans Devanagari/Nirmala UI/Mangal font. HUD at
 top 10% serves the story and avoids faces/hands/contact points.
 
 1. **Build/check:** implement authorized changes; `npx tsc --noEmit` must
@@ -185,3 +197,28 @@ top 10% serves the story and avoids faces/hands/contact points.
    partial-delivery request, stop the owned job and package only its complete
    contiguous prefix with matching audio. State duration/resolution, preserve
    resumable output, and do not resume until requested.
+
+## 5. Reusable first-build baseline and gates
+
+For Blender, start new scenes/versioned copies with
+[`ricks_lookdev.py`](../scripts/ricks_lookdev.py), not a copied production
+runtime. Follow [contract §8](references/cel-studio-contract.md#8-shared-blender-production-baseline)
+and the [pipeline guide](../scripts/SHORTS_PIPELINE.md). This preserves the
+V13 construction decisions; story-specific visual calibration is still required.
+
+- Asset sanitation: <=512px prop / <=1024px hero textures; target <150k,
+  hard <200k visible evaluated triangles; max one shadowed Sun. Record CC0
+  or other permitted free-asset licenses; do not claim every free asset is CC0.
+- Full-render gate on RTX 3050 4GB: 12 native frames, p95 <=1.8s,
+  max <=2.0s, sampled VRAM <=3.3 GiB. Missing telemetry is unverified.
+- Check every-frame camera clearance >=0.30m from sets/props, continuous
+  junction transforms/lens/focus, projected framing and oblique projectile
+  aspect; orient a moving projectile to its 3D velocity tangent.
+- Generate intermediate-junction calibration plus hat-brim and hand/prop
+  close-ups. Use explicit cuts and static/tracked shadow regions in
+  `short_qa.py --strict`; keep raw diagnostics and review each flagged interval.
+- Preserve supplied/locked audio. New narration target: dry compressed VO
+  ~210–230 WPM, mix -14.3 LUFS / <=-3.0 dBTP / narrow LRA. When captions
+  are requested: actual Bold white sans-serif, ~20px glyph height at 360p
+  (~60–84px at 1080p), ~2px/6px black stroke, y=70.5%, <=1 frame sync;
+  Blender burns them after grading with FFmpeg. Default remains no subtitles.

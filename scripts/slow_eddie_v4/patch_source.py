@@ -1,0 +1,5 @@
+import bpy,json,hashlib
+from pathlib import Path
+P=Path('D:/remotionshorts/renders/slow_eddie_v4');s=bpy.context.scene;bpy.app.handlers.frame_change_post.clear();old=(json.loads((P/'patch_mapping.json').read_text())['original_source_sha256'] if (P/'patch_mapping.json').exists() else hashlib.sha256((P/'slow_eddie_v4.blend').read_bytes()).hexdigest());t=bpy.data.texts['slow_eddie_v4_runtime.py'];t.clear();t.write(Path('D:/remotionshorts/scripts/slow_eddie_v4/runtime.py').read_text());exec(compile(t.as_string(),'runtime','exec'));s.frame_set(1);bpy.ops.wm.save_as_mainfile(filepath=str(P/'slow_eddie_v4.blend'));(P/'patch_mapping.json').write_text(json.dumps({'reason':'Wider arrival keeps complete holster in frame with continuous pullback focal length','original_source_sha256':old,'final_source_sha256':hashlib.sha256((P/'slow_eddie_v4.blend').read_bytes()).hexdigest(),'rerender_frames':[77,159],'unchanged_frames':[[1,76],[160,300]]},indent=2))
+for f in [90,93]:
+ s.frame_set(f);update(s);s.render.resolution_percentage=50;s.render.filepath=str(P/f'patch_cal_{f}.png');bpy.ops.render.render(write_still=True)

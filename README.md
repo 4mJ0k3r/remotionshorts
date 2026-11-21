@@ -8,36 +8,22 @@ New Remotion shorts share the studio engine in `src/engine/`. Each short supplie
 
 ## Start here with another AI agent
 
-Clone this repository and tell the agent to read [AGENTS.md](AGENTS.md) and
-[ANIMATION_STYLE_HANDOFF.md](ANIMATION_STYLE_HANDOFF.md) first. Supply the new
-story, voice track, desired renderer, text preferences and permitted render
-stage. The handoff links to the current contracts, reusable source and review
-process. Code and guidance are included; private reference clips, narration,
-Blender binaries and generated media are deliberately excluded.
+Clone this repository and direct the agent to [AGENTS.md](AGENTS.md) first.
+It routes new Shorts through the default Blender studio spec and runnable
+starter. Supply the story, voice track, any renderer override, text preferences,
+and permitted render stage. The repository includes code and guidance. Private
+reference clips, narration, Blender binaries, and generated media are excluded.
 
 ```bash
 git clone https://github.com/4mJ0k3r/remotionshorts.git
 cd remotionshorts
 ```
 
-Use the Remotion quick start below for a silent baseline without external
-assets. For Blender, install Blender 4.2 LTS and FFmpeg separately, then
-`python -m pip install -r requirements-blender.txt`. The production launchers
-currently target Windows/PowerShell. The latest example accepts explicit paths:
-
-```powershell
-$env:BLENDER_EXE = "C:/Program Files/Blender Foundation/Blender 4.2/blender.exe"
-$env:NARRATION_AUDIO = "C:/path/to/your/narration.mp3"
-# Use only when building this example is the requested task:
-python scripts/sendha_namak_science/run.py build
-python scripts/sendha_namak_science/run.py sheet
-```
-
-The example's timing is specific to its 57.6-second story. A new short needs
-its own beat map and audio analysis; cloning does not authorize starting an
-old render. Older example launchers may contain machine-specific paths—adapt
-them before execution. The recipes distinguish reference code from verified
-output, and a text-only agent can plan/critique without claiming to render.
+For the default Blender workflow, install Blender 4.2 LTS and FFmpeg separately
+and run `python -m pip install -r requirements-blender.txt`. Follow the
+[v4 studio spec](RICKS_STYLE_SKILL.md) for the Windows launcher, proof, and
+native export commands. Use the Remotion quick start below when the current
+brief calls for Remotion.
 
 ## Where the docs are
 

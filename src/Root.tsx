@@ -13,6 +13,7 @@ import { InstantSkillShort, INSTANT_SKILL_FRAMES } from "./videos/instant_skill/
 import { ElevatorCrushShort, ELEVATOR_CRUSH_FRAMES } from "./videos/elevator_crush/ElevatorCrush";
 import { CrushBathroomShort, CRUSH_BATHROOM_FRAMES } from "./videos/crush_bathroom/CrushBathroom";
 import { TestCanvas } from "./TestCanvas";
+import { GandhijiSchoolShort, GANDHIJI_SCHOOL_FRAMES } from "./videos/gandhiji_school/GandhijiSchool";
 
 export const RemotionRoot: React.FC = () => (
   <>
@@ -105,6 +106,7 @@ export const RemotionRoot: React.FC = () => (
       height={1920}
     />
     <Composition id="CrushBathroomShort" component={CrushBathroomShort} durationInFrames={CRUSH_BATHROOM_FRAMES} fps={30} width={1080} height={1920} />
+    <Composition id="GandhijiSchoolShort" component={GandhijiSchoolShort} durationInFrames={GANDHIJI_SCHOOL_FRAMES} fps={30} width={1080} height={1920} />
     <Composition
       id="TestCanvas"
       component={TestCanvas}

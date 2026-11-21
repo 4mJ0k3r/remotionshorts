@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "indexing": "ZERO-based; shots/action/shadow intervals [a,b); transition/flash ranges inclusive; cuts are destination frames",
+  "shots": [{"id": "intro", "a": 0, "b": 40}, {"id": "move", "a": 40, "b": 80}, {"id": "reaction", "a": 80, "b": 120}],
+  "cuts": [80],
+  "continuous_junctions": [40],
+  "transitions": [[35, 48]],
+  "xfade": [],
+  "calibration_frames": [12, 27, 66, 105],
+  "action_ranges": [[15, 33], [40, 78]],
+  "mad_exclude_regions": [],
+  "mad_ratio": 3,
+  "mad_floor": 1,
+  "mad_absolute": 12,
+  "shadow_checks": [{"name": "opening static brim receiver", "start": 0, "end": 15, "registration": "locked-camera", "regions": [[0.25, 0.2, 0.45, 0.26]], "max_adjacent_luma": 1}],
+  "closeups": [{"frame": 12, "kind": "hat_brim", "label": "REPLACE with actual forehead ROI", "region": [0.2, 0.15, 0.55, 0.35]}, {"frame": 66, "kind": "hand_prop", "label": "REPLACE with actual grip ROI", "region": [0.3, 0.4, 0.65, 0.7]}]
+}

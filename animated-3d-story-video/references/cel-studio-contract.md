@@ -1,5 +1,8 @@
 # Shared cel studio contract
 
+Current Blender baseline: 3D-lit yet 2D-clean cel geometry. §8 supersedes
+historical flat-only construction and old production-specific render recipes.
+
 Mandatory for Blender and Remotion skills. This specifies construction and
 acceptance, not another creator's private rig. User scope/style wins. Never
 execute render recipes during analysis-only work. Use the requested backend.
@@ -9,11 +12,31 @@ details and [the style handoff](../../ANIMATION_STYLE_HANDOFF.md) for reviewed
 examples. Numeric examples are calibration starting points; preserve the
 current brief's anatomy, story, text policy, resolution and permitted stages.
 
-## 1. One coherent flat silhouette
+## 1. One coherent cel silhouette: 3D-lit yet 2D-clean
 
-**Banned:** block/cylinder torsos paired with flat limbs; thick visible shell
-rims; unmasked plaid; rectangular neck/shorts planes sticking out; white
-matte fringes; continuous geometry boil.
+Screen appearance takes precedence over construction dimensionality: faces,
+hands, arms and legs read as flat 2D graphic shapes. 3D geometry may support
+contact, occlusion and subtle cast shadows, but no glossy mitten hands,
+sculpted facial features or rounded tube highlights. Keep face fill simple,
+hands/limbs dark and matte, and outlines bold. Hat-brim bands may remain
+restrained; do not let wrap shading turn the face into a visibly modeled ball.
+
+Default Blender construction uses smooth 48-segment 3D heads, conformed 2D
+facial decals, real hat-brim receiving/casting surfaces, and smooth 2.5D
+contoured torsos, vests, hats and props. Preserve the approved rough-round
+head design and proportions. No generic sphere redesign or random head noise.
+Use #16121C/#292337 inverted-hull ink, clamped around 1.5–3px at 360p through
+camera distance/lens changes. Keep dark sidewall shading separate from ink
+thickness. All ink shells are non-shadow-casting. §8 is the Blender baseline.
+
+**Banned:** primitive box/cylinder clothing without a designed silhouette,
+lumpy/ribbed capsule limbs, thick shell rims, z-fighting, unmasked patterns,
+protruding neck/shorts corners, white matte fringes and geometry boil.
+
+The raster/mask recipes below apply to the **optional flat-card backend**
+(existing Remotion and explicitly flat Blender briefs). They are not a ban
+on 3D geometry. Curved 3D clothing instead shares connected anatomical anchors,
+clean mesh joins and smoothly wrapped received light.
 
 Author one stable rest contour per asset. Rough-circle recipe:
 
@@ -64,10 +87,11 @@ crescent = crescent.filter(ImageFilter.GaussianBlur(3))
 crescent = ImageChops.multiply(crescent, head_inner_mask)
 ```
 
-Apply a soft bottom-left cool grey-blue multiply crescent to both the cream
+For flat cards only, apply a soft bottom-left cool grey-blue multiply crescent to the cream
 head and the shirt before final ink and facial features. Reuse the recipe
 with the respective fill mask and multiply strength `0.15 * crescent / 255`.
-Check that the crescent reads through the final grade at delivery size.
+Check it through the final grade. For 3D heads use real upper-forehead brim
+occlusion instead; keep lower cheeks/jaw warm, not blue-grey.
 Keep patterns 0.5–1 outline width inside the boundary, not heavier
 than the outline. Edge-dilate transparent RGB from neighboring ink/color,
 never white; match renderer alpha mode to avoid halos.
@@ -79,17 +103,15 @@ silhouette once. No outlined hidden sockets or shirt-only stretching away
 from pants. Layer depth offsets must be invisible in the worst camera view;
 there is no universal centimeter offset.
 
-A brief may call for a shallow matte 3D pelvis under the flat torso. Keep it
-anatomically rounded, aligned with the body, covered at the hem and connected
-to the legs. It is not permission for a volumetric shirt or a horizontal hip
-platter. Check visible leg proportions after clothing and furniture occlusion,
-not merely bone length in the script.
+Use a connected, anatomically rounded pelvis, aligned under the torso hem;
+no horizontal hip platter. Contoured 2.5D clothing and 3D heads are the default
+Blender route. Check visible leg proportions after clothing and occlusion.
 
-Limbs are flat ribbons/cel strokes, rounded caps and subtle static pressure
-variation. Two-bone IK shares shoulder/hip anchors, outward elbow poles and
-clamped reach; round the curve around the solved elbow, not a rigid right
-angle. Contour variation never moves endpoints. Use front/back arm passes
-for hugs and handle grips, with head occlusion protecting faces.
+Limbs use smooth continuous curved sweeps, or flat ribbons for the card route,
+with rounded caps and subtle static pressure variation. Two-bone IK shares
+shoulder/hip anchors, outward elbow poles and clamped reach. Round the elbow,
+not a rigid right angle. No ring seams or stacked capsules. Contour variation
+never moves endpoints. Resolve front/back grips and protect faces.
 
 ## 2. Finite beat events and exact holds
 
@@ -191,7 +213,7 @@ front/back wrap, surface normals and their projected overlap in rendered crops.
 If IK clamps an unreachable target, audit the resulting hand rather than the
 requested target and move the actor/support into reach.
 
-If unreachable/out of the flat card plane, reposition actor/shot or stage a
+If unreachable (or outside the optional flat-card plane), reposition actor/shot or stage a
 coherent arm layer; do not teleport the fixture. Image X/Y alone is not
 contact: verify depth, normal, fingertip and readable occlusion. Front
 fingers cover the handle and rear fingers pass behind it. Parent cup-center
@@ -311,10 +333,10 @@ hold stability so a planned camera move isn't mistaken for wobble.
 
 Required visual checklist:
 
-1. Stable rough cream head, variable dark ink, no halo, inner cool crescent,
+1. Stable rough cream head, variable dark ink, no halo, cool received shadow,
    solid readable pupils/features.
-2. Flat rounded body, clipped pattern, seamless neck/shoulder/shorts at
-   extremes; no shell sidewalls/protruding corners.
+2. Smooth contoured body (or authored flat-card body), clipped pattern and
+   seamless neck/shoulder/shorts at extremes; no thick rims/protruding corners.
 3. Connected curved limbs and anchors, supported pelvis/feet, stable holds,
    finite reactions, no perpetual drivers.
 4. Fixture contact aligns in 3D and screen space for entire touch/hold,
@@ -358,9 +380,15 @@ rendered in motion; label that distinction and the delivered frame range.
 
 ## 7. Six mandatory visual laws and recipes
 
-### 7.1 Camera-facing heads and painted parallax
+### 7.1 Independent head pivots and attached facial features
 
-Use a dedicated head billboard pivot. Take its position from the evaluated
+For 3D cel heads, use a dedicated pose pivot, 48-segment smooth mesh and
+surface-conformed facial decals that stay attached during turns/nods. Hats
+and facial features follow that pivot; the brim remains a real shadow caster.
+Camera-relative orientation is an art choice, not mandatory billboarding of a
+3D face. Inspect side/high views for decal clipping and readable pupils.
+
+For the optional flat-card route only, use a dedicated head billboard pivot. Take its position from the evaluated
 neck anchor and solve its orientation from the active camera independently
 of torso pitch, yaw and scale. Use a unit-scale pivot with local XY art,
 +Z facing out and +Y up. In Blender use `DAMPED_TRACK` with `TRACK_Z`.
@@ -419,14 +447,22 @@ surface/aperture contact and explicit front/back layers. Keep unrelated eyes,
 brows and the readable action clear; do not make the intended contact float
 outside the head just to satisfy a generic radius threshold.
 
-### 7.3 Crescent shading, ink on fours and eyelid masks
+### 7.3 Received-light shadows, stable ink and eyelid masks
 
-Use the clipped head and shirt crescent from §1 with 15% cool grey-blue
-multiply strength and a soft bottom-left edge. Add dark, soft contact
-shadows centered on actual supporting feet. Weight the organic outer ink
-toward the lower/shaded edge and lighten the top-right stroke weight.
+For 3D cel heads use Diffuse -> Shader to RGB -> luminance -> Map Range ->
+EASE ramp -> Emission 1.0. Tune received-light thresholds against the actual
+hat/brim crop. Upper 20–25% forehead under the brim receives #C4C8EA with an
+approximately 1–2px transition at 360p; cheeks/jaw stay warm #FDF5EF. A local
+receiver mask can protect the lower face while retaining real upper-zone
+occlusion; derive it from the current head, never old character coordinates.
+Do not invert the band onto the chin. Shirt/vest surfaces receive smooth
+warm/cool wrap shading; continuous sidewalls do not inflate the outline.
 
-Apply subtle deterministic noise to a paint-only ink weight or texture
+For flat cards only, use the clipped §1 crescent at 15% cool grey-blue with
+a soft bottom-left edge. Both routes ground actual supporting soles. Fixed
+contour pressure can weight the shaded ink edge; never animate head noise.
+
+For the flat-card route, optionally apply subtle deterministic noise to a paint-only ink weight or texture
 channel sampled on fours. In Blender use Noise followed by Stepped
 Interpolation with step size 4, or bake the same channel with constant
 four-frame samples. Keep the perturbation on the interior edge of the ink
@@ -469,15 +505,18 @@ side and high angles. Use teardrop silhouettes with soft taper.
 ### 7.5 Directional light, grounding and mood
 
 Build a warm shadow-casting key through real window openings and mullions.
-In Blender start a Sun at strength 3.5, angular diameter 15° and shadows
-enabled.
+In Blender use the §8 4:1 warm/cool rig: key strength 2.2, angular diameter
+4°, shadows enabled, and unshadowed cool fill strength 0.55. These are starting
+values for scene calibration, not an exemption from the received-shadow gate.
 
 ```python
 from math import radians
 
-sun.data.energy = 3.5
-sun.data.angle = radians(15)
+sun.data.energy = 2.2
+sun.data.angle = radians(4)
 sun.data.use_shadow = True
+sun.data.use_shadow_jitter = False
+sun.data.shadow_maximum_resolution = 0.025
 # Sun light travels along local -Z. direction points into the room.
 sun.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
 ```
@@ -516,3 +555,119 @@ after world depth, grade and vignette. Keep one source of timing, maintain
 safe areas and check legibility at delivery size. Keep subtitles independently
 controlled by the user's preference. Reserve world text for diegetic writing
 such as chalk on an existing blackboard or handwriting on a real note.
+
+
+## 8. Shared Blender production baseline
+
+New original Blender Shorts must call `scripts/ricks_lookdev.py` on a new
+scene or a versioned working copy. Import is inert. Never modify an approved
+source/render to adopt new defaults. Existing flat-card productions remain
+valid; these rules govern new builds unless the current brief overrides them.
+Use `scripts/SHORTS_PIPELINE.md` for calls, metadata and evidence artifacts.
+
+### 8.1 Look development and anti-flicker
+
+- Blender 4.2 EEVEE Next; Standard/None; exposure 0.0, gamma 1.0; RT off;
+  32 render samples; shadow pool 512, 2 rays, 6 steps; bokeh jitter OFF,
+  motion blur OFF; Simplify ON, subdivision cap 2. A measured lower sample
+  count is allowed only after repeat calibration and a passing native benchmark.
+- Vertical 36mm camera sensor. Derive distance from actor height, lens and
+  desired screen fraction. Lock focal length per continuous shot. Use quintic
+  ease5 and LINEAR per-frame baked samples to avoid Bezier overshoot.
+- Visible world gradient: #BEE1FF horizon -> #69BBFF -> #2D93FB -> #1475D8
+  zenith. Verify world ray direction. Mist start 12m, depth 70m, both scaled
+  by actor height/1.8; compositor Depth <250m excludes sky; mist gain <=0.45.
+  Fog Glow threshold 1.3, size 6, effect-only additive contribution 0.08.
+- Daylight starting rig: warm key Sun #FFE4BE at E=2.2, cool fill Sun
+  #9BAEFF at E=0.55 (4:1). Key shadows ON, maximum resolution 0.025m,
+  jitter OFF; fill shadows OFF. At most one visible shadowed Sun.
+- Light-driven cel chain: Diffuse -> Shader to RGB -> RGB to BW -> Map
+  Range -> EASE ColorRamp -> Emission 1.0. Calibrate Map Range against real
+  upper-forehead brim occlusion. A warm unshaded chin is not proof that the
+  brim casts correctly; inspect the delivered forehead crop.
+- Disable shadow casting automatically on every inverted-hull ink shell,
+  cloud, smoke/wisp, projectile streak and distant horizon prop. Tag roles
+  through `mark_role`; all imported horizon objects need explicit tags.
+  Keep actual hats/body/props shadow-capable. Clean continuous ink and
+  sidewalls, no lumpy capsules, collar cracks, sleeve seams or z-fighting.
+
+### 8.2 Assets and 4GB GPU gate
+
+Prefer licensed CC0/free stylized kits; retain source/license records.
+Before rendering, sanitize every imported asset: props <=512px and hero
+architecture <=1024px, unused normal/displacement image nodes removed,
+no unused 4K maps retained in the production file. Pack resized copies;
+never overwrite source asset images. Decimate eligible imported set meshes
+before rigging/calibration, preserving actor geometry and silhouettes.
+Count evaluated visible triangles including instances/modifiers: target
+<150,000, hard <200,000. Dense invisible meshes are not a substitute for
+proper visibility and texture cleanup.
+
+Claim the shared GPU lock before any background Blender process. No parallel
+Chromium render. Benchmark 12 distinct frames spread over ALL shots and worst
+FX/DOF/contact states at the exact final 1080x1920/30fps settings. Record a
+separate warmup, unmodified first-pass wall times including frame update/save,
+p95 <=1.8s, maximum <=2.0s, and sampled board VRAM <=3.3 GiB. Keep sampling
+through the render; samples cannot guarantee no brief peak. Missing GPU/VRAM
+telemetry is UNVERIFIED, never a pass. Optimize and re-calibrate on failure;
+retain failed measurements rather than substituting fast retries. A smoke
+check proves API/node construction only, not this gate or visual quality.
+
+### 8.3 Camera, projectile and junction gate
+
+Measure camera clearance >=0.30m from every porch, railing, barrel, facade
+and prop on EVERY frame, with evaluated moving geometry. Declare collision
+meshes and shot-specific active subjects. Check camera-to-subject occlusion,
+projected bounds and intentional crops from delivery cameras. A proxy check
+cannot certify an omitted obstacle or a clear silhouette.
+
+Declare actual cut destination frames separately from shot labels. Continuous
+junctions must have continuous camera transform, focal and focus curves;
+no undocumented resets at segment boundaries. Lens is fixed per continuous
+shot, rack focus is smooth. Inspect both sides plus intermediate frames of
+every transition, and any fast move/rail pass. MAD spikes outside declared
+cuts/flashes/dissolves flag review, not automatic proof of collision. Do not
+blanket-exempt shot boundaries. Preserve raw results and explicit reasons.
+
+Projectiles point their local nose strictly along `pos(f+1)-pos(f)` using
+`to_track_quat`, with optional LOCAL axial spin; no broadside crabbing.
+Supply a deterministic arrival tangent when stopped. Check projected oblique
+aspect (side and nose visible, typically >=1.6:1 elongated for a hero bullet),
+not just world orientation. Record projected prop/grip separation per frame;
+geometry anchors plus native crops must prove zero intersection or floating
+hand/white grip ovals. Pixel clearance targets depend on the current brief.
+
+### 8.4 Sensory and caption gate
+
+Preserve supplied/locked narration, timing and mix unless authorized otherwise.
+For newly produced fast narration target dry compressed VO ~210–230 WPM;
+measure against the actual transcript/duration. Full mix target -14.3 LUFS
+(within 0.5 LU), true peak <=-3.0 dBTP, narrow LRA (working target <=5 LU).
+Use FFmpeg ebur128/true-peak measurements on the DELIVERED mux; word alignment
+requires actual timestamp/transcript or listening evidence, not loudness stats.
+
+Captions default OFF. When requested, burn AFTER grading using FFmpeg/libass
+and the actual Bold sans-serif font file (correct shaping for the language),
+pure #FFFFFF, about 20px NON-DESCENDER glyph height at 360p (~60–84px at
+1080p), about 2px/6px black stroke, optical center y=70.5%, sync <=1 frame.
+ASS font size and alignment alone do not establish optical glyph height or
+y-position; inspect rendered glyph masks and word timing. Avoid story-critical
+faces/hands. Existing locked captions/audio are not silently reformatted.
+
+### 8.5 Required evidence before delivery
+
+Use `scripts/calibration_sheet.py` and a story manifest to include shot
+start/mid/end, action/contact extremes, junction +/-1 and +/-2 neighbors,
+intermediate transition samples, and explicit native hat-brim + hand/prop
+crops. Missing semantic crops/anchors are UNVERIFIED, never guessed.
+Inspect the sheet and close-ups before the already-authorized full render.
+Review actual movement, contact intervals and opening shadow holds in motion.
+
+Run `scripts/short_qa.py movie.mp4 qa_dir manifest.json --strict` on the final
+mux. New manifests declare cuts (possibly []), continuous junctions, action
+ranges, and locked-camera or per-frame registered shadow-receiver regions.
+Test opening shadow stability only where real camera/actor/lighting holds
+make a pixel comparison meaningful. Missing regions are UNVERIFIED. Captions
+may have explicit narrow MAD exclusions, but raw differences are retained.
+Review diagnostics and keep narrow written resolutions for intentional motion;
+a report PASS is not artistic acceptance. Respect user scope and stopping point.
