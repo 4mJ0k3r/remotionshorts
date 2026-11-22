@@ -1,71 +1,88 @@
 # remotionshorts
 
-A **Remotion + Three.js 2.5D vertical story-animation engine** (1080x1920 @ 30 fps).
+A **vertical 9:16 animated Shorts studio (`1080 × 1920 @ 30 fps`)** powered by **Blender 4.2 LTS (`BLENDER_EEVEE_NEXT`)** with a reusable **Official 3D Main Character (`assets/mascot/`)**, automated pre-render guardrails, **3 GPU execution workflows** (Local RTX 3050, Modal Serverless L4/T4, Remote Linux/Colab SSH), and a secondary **Remotion + Three.js** TypeScript engine (`src/engine/`).
 
-Real 3D sets are built in `three.js` via `@remotion/three`, `@react-three/fiber` and `@react-three/postprocessing`. They are drawn with ink outlines, thin-lens depth of field, bloom and a display-referred colour grade. The characters are 2D cartoon cards drawn procedurally on canvas each frame and placed in the 3D world as yaw-billboards. Each short is a self-contained module under `src/videos/<name>/`.
+---
 
-New Remotion shorts share the studio engine in `src/engine/`. Each short supplies its own story, sets, and frame-driven world.
+## Start Here (Humans & AI Agents)
 
-## Start here with another AI agent
-
-Clone this repository and direct the agent to [AGENTS.md](AGENTS.md) first.
-It routes new Shorts through the default Blender studio spec and runnable
-starter. Supply the story, voice track, any renderer override, text preferences,
-and permitted render stage. The repository includes code and guidance. Private
-reference clips, narration, Blender binaries, and generated media are excluded.
+1. Read **[`AGENTS.md`](AGENTS.md)** first — it is the single master router for all AI agents (`CLAUDE.md`, `GEMINI.md`, and `.cursorrules` delegate directly to it).
+2. Read **[`RICKS_STYLE_SKILL.md` (v7)](RICKS_STYLE_SKILL.md)** for the 5 visual craft laws, film grammar, and QA gates.
+3. Read **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** for the full directory map, dependency graph, and module specifications.
+4. For Shorts featuring our **Red-Beanie Yellow-Hoodie Chibi Mascot**, read **[`assets/mascot/MASCOT_SKILL.md`](assets/mascot/MASCOT_SKILL.md)** and **[`assets/mascot/README.md`](assets/mascot/README.md)** — never rebuild him from scratch.
 
 ```bash
 git clone https://github.com/4mJ0k3r/remotionshorts.git
 cd remotionshorts
+python -m pip install -r requirements-blender.txt
 ```
 
-For the default Blender workflow, install Blender 4.2 LTS and FFmpeg separately
-and run `python -m pip install -r requirements-blender.txt`. Follow the
-[v4 studio spec](RICKS_STYLE_SKILL.md) for the Windows launcher, proof, and
-native export commands. Use the Remotion quick start below when the current
-brief calls for Remotion.
+> **Note:** Private reference clips, narration audio, Blender binaries, and rendered outputs are git-ignored. Supply your own story brief, audio track, and authorized render stage.
 
-## Where the docs are
+---
 
-| File | What it is |
-|---|---|
-| [Remotion skill v10](animated-3d-story-video/SKILL.md) | Shared-engine architecture and the Remotion build and review workflow. |
-| [Blender skill v4](BLENDER_SKILL.md) | Blender scene setup, rigging, contact checks, and render workflow. |
-| [Cel studio contract](animated-3d-story-video/references/cel-studio-contract.md) | Shared visual and acceptance rules for both workflows. |
-| [Style handoff](ANIMATION_STYLE_HANDOFF.md) | Directing priorities, available visual references and what to give another agent. |
-| [Production recipes](animated-3d-story-video/references/production-recipes.md) | Billboard axes, surface grips, mouth anchors, shot resets and resumable delivery. |
-| [Project manifest](PROJECT_MANIFEST.md) | Runtime stack, rendering conventions, toolchain, and privacy rules. |
+## Core Documentation Map
 
-## Shared engine
+| File | Purpose |
+| :--- | :--- |
+| [`AGENTS.md`](AGENTS.md) | Master agent router: decision tree, Official Mascot rule, 3 GPU paths, 5 craft laws, guardrails. |
+| [`RICKS_STYLE_SKILL.md`](RICKS_STYLE_SKILL.md) | v7 Blender 4.2 visual, chiaroscuro lighting, PBR, camera, acting, and numeric QA spec. |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Full modular layout, dependency diagram, Guardrail API catalog, active vs. archived Shorts. |
+| [`assets/mascot/MASCOT_SKILL.md`](assets/mascot/MASCOT_SKILL.md) | Official Main Character rig API, 18 expressions/visemes, 7 hands, and 18 studio animations. |
+| [`docs/archive/README.md`](docs/archive/README.md) | Quarantined legacy docs (`BLENDER_SKILL.md`, `ANIMATION_STYLE_HANDOFF.md`, `PROJECT_MANIFEST.md`, `SHORTS_PIPELINE.md`). |
+| [`src/engine/README.md`](src/engine/README.md) | Secondary Remotion + Three.js shared engine entrypoints. |
 
-- `ShortPlayer.tsx` mounts the composition, render passes, audio, HUD, and optional subtitles.
-- `character.ts` and `pool.ts` provide cel drawing, poses, actor cards, effects, lip sync, and hand placement.
-- `camera.ts` handles shot motion and depth of field. `kit3d.ts` provides reusable set and prop builders. `shaders/` holds shared materials and post-processing.
+---
 
-See the [engine README](src/engine/README.md) for the module entry points.
+## Quick Start — Default Blender 4.2 Pipeline (3 GPU Workflows)
 
-## Modules (`src/videos/`)
+### 1. Choose a Starter
+- **Official Main Character Short:** Copy [`assets/mascot/starter_scene_template.py`](assets/mascot/starter_scene_template.py) to `scripts/<short>/v01/build.py`.
+- **Custom Cast / Diorama Explainer Short:** Copy [`scripts/templates/diorama_short_template.py`](scripts/templates/diorama_short_template.py) to `scripts/<short>/v01/build.py`.
 
-Composition IDs are registered in `src/Root.tsx`.
+### 2. Run on Any of the 3 GPU Backends
 
-| Folder | Composition ID | What it is |
-|---|---|---|
-| `coaster` | `CoasterShort` | 10 s roller-coaster benchmark and calibrated visual baseline. |
-| `tower_jump`, `tower_qwen` | `TowerJumpShort`, `TowerQwenShort` | 10 s London Tower Bridge bus-jump benchmark (two variants). |
-| `hotel_lift` | `HotelLiftShort` | 10 s 1861 Chicago hotel-lift benchmark. |
-| `molasses_tank` | `MolassesTankShort` | 10 s 1919 Boston molasses-flood benchmark. |
-| `instant_skill` | `InstantSkillShort` | ~124 s full reel (3714 frames). |
-| `elevator_crush` | `ElevatorCrushShort` | 111.5 s full reel (3345 frames). Hindi voiceover, 11 shots, cliffhanger ending. |
-| `crush_bathroom` | `CrushBathroomShort` | Bathroom comedy built on the shared engine. |
-| `bridge`, `pardon`, `age18`, `school` | `BridgeShort`, `PardonShort`, `Age18Short`, `SchoolHeroShort` | Earlier modules. |
+```powershell
+# Path A — Modal Serverless Cloud GPU (NVIDIA L4/T4, zero idle billing, auto-syncs core kit + assets/mascot/):
+modal run scripts/modal_blender.py --mode verify
+modal run scripts/modal_blender.py --mode run --project <short>/v01 --script build.py --runner blender --script-args "--out {out}"
+modal run scripts/modal_blender.py --mode run --project <short>/v01 --script build.py --runner blender --script-args "--out {out} --render"
 
-`TestCanvas` is a 1-second sandbox composition.
+# Path B — Local PC + Local RTX 3050 GPU (uses exclusive .blender_gpu.lock):
+$env:BLENDER_EXE = 'D:\tools\Blender\4.2.23\blender.exe'
+python scripts/templates/diorama_short_template.py --out renders/diorama_starter/v01
+python scripts/templates/diorama_short_template.py --out renders/diorama_starter/v01 --render
+```
 
-New shorts use `story.ts` for timing and shots, `build.ts` for sets, `world.ts` for frame updates, and `<Name>.tsx` for the composition. Import reusable components from `src/engine/` and register the composition in `src/Root.tsx`.
+```bash
+# Path C — Remote Linux / Colab Cloud GPU via SSH (optional GUI bridge in tools/blender_remote_bridge/):
+BLENDER_EXE=/opt/blender42/blender /opt/blender42/blender -b --factory-startup \
+    --python scripts/<short>/v01/build.py -- --out renders/<short>/v01
+```
 
-## Quick start
+### 3. Run Local CPU Tests, Guardrails & QA Gates
 
-Requirements: Node 20+ (developed on Node 24), Google Chrome. Python 3 with `numpy` and `Pillow`, and `ffmpeg`/`ffprobe` on `PATH`, are needed for the QA scripts.
+```powershell
+# Pure-Python unit tests (no Blender required on host):
+python -m unittest discover -s tests -p "test_*.py" -v
+
+# Pre-render expression upper-face pixel-lock check:
+python scripts/ricks_guardrails.py --check-expr-pair art/talk_closed.png art/talk_open.png
+
+# Post-render numeric & video QA gates:
+python scripts/ricks_metrics_gate.py --edge-density renders/<short>/v01/calibration
+python scripts/ricks_metrics_gate.py --cam-velocity renders/<short>/v01/final.mp4 renders/<short>/v01/cuts.json
+python scripts/short_qa.py renders/<short>/v01/final.mp4 renders/<short>/v01/qa renders/<short>/v01/shots.json
+ffprobe -v error -select_streams v:0 -show_entries stream=width,height,sample_aspect_ratio,r_frame_rate,nb_frames -of json renders/<short>/v01/final.mp4
+```
+
+---
+
+## Secondary Engine — Remotion + Three.js (`src/engine/`)
+
+Use Remotion when a brief explicitly requests it. Shared engine modules live in `src/engine/`, and individual compositions live in `src/videos/<name>/` (registered in `src/Root.tsx`).
+
+Requirements: Node 20+ (developed on Node 24), Google Chrome, Python 3 (`numpy`, `Pillow`), and `ffmpeg`/`ffprobe` on `PATH`.
 
 ```bash
 npm install
@@ -73,53 +90,22 @@ npx tsc --noEmit        # must exit 0
 npx remotion studio     # interactive preview
 ```
 
-Render calibration stills (all frames in ONE command, half scale):
-
-```bash
-# bash / macOS / Linux
-BRIDGE_ID=CoasterShort node scripts/bridge-stills.mjs out/coaster/cal/f 10,45,75 0.5
-```
+Render half-scale calibration stills and video previews:
 
 ```powershell
-# Windows PowerShell
+# Calibration stills (Windows PowerShell):
 $env:BRIDGE_ID="CoasterShort"; node scripts/bridge-stills.mjs out/coaster/cal/f 10,45,75 0.5
-```
 
-Render a video (`first` and `last` frame, scale, composition ID):
-
-```bash
+# Preview video + QA gate:
 node scripts/bridge-video.mjs out/coaster/test.mp4 0 299 0.5 CoasterShort
-```
-
-Run the automated QA gate (black/white/frozen frames, pops, held frames, per-shot luma, contact sheets):
-
-```bash
 python scripts/short_qa.py out/coaster/test.mp4 out/coaster/qa out/coaster/shots.json
 ```
 
-`shots.json` has the shape `{"shots":[{"id":1,"a":0,"b":95}, ...], "planned":[[a,b], ...]}`. `planned` lists the frame windows for intentional cuts, camera kicks, expression swaps and subtitle changes.
+> Tip: pass `BRIDGE_PROPS='{"subs":false}'` to render without subtitles during calibration. Voice tracks (`public/<module>/audio.mp3`) are git-ignored; supply your own or omit `<Audio>` for silent previews.
 
-Tip: pass `BRIDGE_PROPS='{"subs":false}'` to render without subtitles so text never hides hands or props during calibration.
+---
 
-### Machine-specific settings in the render scripts
+## Visual References & Excluded Files
 
-`scripts/bridge-stills.mjs` and `scripts/bridge-video.mjs` currently assume:
-
-- Chrome at `C:/Program Files/Google/Chrome/Application/chrome.exe` (edit `browserExecutable` for your system).
-- A temp folder from `REMOTION_TMP` (defaults to `D:/remotion-tmp`). Each bundle copies `public/` there, so use a drive with room.
-- `gl: "angle"`. On a laptop with two GPUs, set Chrome to use the high-performance GPU, otherwise renders are several times slower.
-
-## Audio files are not in the repo
-
-Voiceover tracks live at `public/<module>/audio.mp3`. They are **git-ignored**. Compositions that use them, including `age18`, `crush_bathroom`, `elevator_crush`, `instant_skill` and `school`, need local audio. You have two options:
-
-1. Drop your own `audio.mp3` at `public/<module>/audio.mp3`, for example `public/elevator_crush/audio.mp3`. The subtitle cue frames in each module were timed to the original voiceover.
-2. For silent previews, omit the audio prop from `ShortPlayer` or disable the composition's direct `<Audio>` mount.
-
-The benchmark modules (`coaster`, `tower_*`, `hotel_lift`, `molasses_tank`) have no audio. `character_sheet.png` (reference art for the school cast), rendered outputs (`out/`) and raw voiceover sources are also git-ignored.
-
-## Working on the engine or the skill
-
-- Follow the current Remotion or Blender skill for type-checking, calibration, and render approval.
-- `scripts/` holds the tooling: stills/video renderers, framing checks (`*_frame.mjs`), contact-sheet tilers and the QA gate.
-- `public/bridge/kenney/` holds the low-poly `.glb` props used by the `bridge` module (Kenney-style nature kit). `scripts/generate-kenney-glb.mjs` generates the props that were missing from that kit.
+- **Tracked Mascot Previews:** [`assets/mascot/previews/`](assets/mascot/previews/) (`turnaround_4views.png`, `expression_grid_18.png`, `hero_3_reference_poses.png`).
+- **Git-Ignored Local Assets:** `renders/`, `out/`, `output/`, `example-animation/`, `refs/vendor/`, `character_sheet.png`, `public/*/audio.mp3`, `.env`, and `_scratch/`.

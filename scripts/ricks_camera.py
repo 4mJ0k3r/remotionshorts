@@ -200,6 +200,38 @@ def creep(pos, aim, f0, rate=.0015):
     return at
 
 
+def beat_drift(p0, p1, f0, f1, *, min_speed_frac=1.0):
+    """Continuous alive camera drift from `p0` to `p1` across `[f0, f1]` with zero freeze stalls.
+
+    Unlike quintic `ease5` (which hits 0 px/frame at both ends and causes static
+    freeze stalls), `beat_drift` maintains at least `min_speed_frac` of its cruise
+    velocity on every frame. Default `min_speed_frac=1.0` produces steady linear
+    drift (ideal for 2–6 px/frame alive framing across dialogue and diorama beats).
+    `p0` and `p1` may be 3-tuples, scalars, or callables `fn(frame)`.
+    """
+    if float(f1) <= float(f0):
+        raise ValueError(f"beat_drift requires f1 > f0, got f0={f0!r}, f1={f1!r}.")
+    m = float(min_speed_frac)
+    if not 0.0 < m <= 1.0:
+        raise ValueError(f"min_speed_frac must be in (0, 1], got {min_speed_frac!r}.")
+    span = float(f1) - float(f0)
+
+    def at(f):
+        u = max(0.0, min(1.0, (float(f) - float(f0)) / span))
+        s = u if m >= 1.0 else (m * u + (1.0 - m) * ease5(u))
+        return _mix(_value(p0, f), _value(p1, f), s)
+    return at
+
+
+def drift_span_for_px_speed(distance_m, frames, *, px_per_frame=3.5, lens=27.0, height=1920,
+                            sensor_h=SENSOR_H):
+    """Lateral travel distance (metres) at `distance_m` producing `px_per_frame` screen drift."""
+    if min(float(distance_m), float(frames), float(px_per_frame), float(lens), float(height)) <= 0.0:
+        raise ValueError("drift_span_for_px_speed inputs must be positive.")
+    metres_per_px = (float(distance_m) * float(sensor_h) / float(lens)) / float(height)
+    return metres_per_px * float(px_per_frame) * float(frames)
+
+
 # ------------------------------------------------------------------ shots
 @dataclass
 class CameraState:

@@ -1,12 +1,8 @@
-# Cursor workspace entry
+# Cursor Workspace Entry
 
-Read these repo-root files in order before editing a new animated Short.
+Read and follow AGENTS.md as the single source of truth before planning or editing.
 
-1. AGENTS.md
-2. RICKS_STYLE_SKILL.md (v6)
-3. scripts/ricks_v2_kit.py
-4. scripts/templates/ricks_short_template.py
-
-Use the current brief and the render stage the user authorized.
-Follow the shared GPU lock and verify native 1080 × 1920 at 30 fps.
-Keep existing productions and respect the paused handoff in AGENTS.md.
+- Default workflow: RICKS_STYLE_SKILL.md (v7), scripts/ricks_v2_kit.py, scripts/templates/diorama_short_template.py, and scripts/ricks_guardrails.py.
+- Official Main Character: Always load from assets/mascot/ (read assets/mascot/MASCOT_SKILL.md) — never rebuild from scratch.
+- Full architecture & 3 GPU paths: docs/ARCHITECTURE.md.
+- Respect the authorized render stage, native 1080x1920 @ 30 fps, .blender_gpu.lock (local GPU), and paused handoffs in AGENTS.md.

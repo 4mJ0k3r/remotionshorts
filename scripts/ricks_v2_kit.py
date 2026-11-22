@@ -11,6 +11,7 @@ directory as art_dir. New shorts can supply their own packed PNG artwork.
 """
 
 import math
+import random
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -29,6 +30,8 @@ else:
     import ricks_lookdev as look
 
 HEAD = (.24, .2112, .2256)
+ROUND_HEAD = (0.235, 0.205, 0.235)
+UPRIGHT_HEAD = (0.230, 0.205, 0.238)
 FACE_CENTER = 1.237
 TORSO_CENTER = .831
 RING = 48
@@ -36,6 +39,8 @@ HAIR_RADIAL_OFFSET = .008
 HERO_EXPRESSIONS = ("suspicious", "excited_awe", "smug_focus", "sneaky", "shock_terror")
 HOODED_EXPRESSIONS = ("broker_neutral", "broker_creepy_grin")
 CREAM_FACE = "#FFF9F0"
+PAPER_WHITE_FACE = "#FAF9F6"
+PAPER_WHITE_SHADOW = "#EAE8E1"
 COOL_FACE_SHADOW = "#9EB2D6"
 WARM_FACE_SHADOW = "#D9B67A"
 CHARACTER_INK = "#040407"
@@ -150,6 +155,21 @@ def make_lit_cel_face_material(name, tone=None, stops=None, *, hood_shadow=False
         l.new(shade, recess.inputs[2])
         shade = recess.outputs[0]
     _cel_output(m, shade, 1.48)
+    return m
+
+
+def make_bright_paper_face_material(name, *, face_color=PAPER_WHITE_FACE,
+                                    shadow_color=PAPER_WHITE_SHADOW, cutoff=0.18,
+                                    strength=1.26):
+    """AgX-calibrated bright paper-white cel face (#FAF9F6 / #EAE8E1).
+
+    Prevents grey/muddy midtones under AgX Medium High Contrast while keeping
+    clean contact shading and crisp contrast behind dark eye/mouth decals.
+    """
+    stops = _two_step_stops(shadow_color, face_color, cutoff)
+    m = surface(name, face_color, 1.)
+    shade = _cel_ramp(m, stops)
+    _cel_output(m, shade, float(strength))
     return m
 
 
@@ -600,9 +620,10 @@ def pose_arm(arm, shoulder, elbow, hand, frame):
                 arm.data.keyframe_insert(f"splines[0].bezier_points[{i}].{channel}",frame=frame)
 
 
-def decal(name, col, parent, mat, half, center, radii):
+def decal(name, col, parent, mat, half, center, radii, *, ellipsoid=None):
     width, height = half
     nx, nz = 31, 29
+    is_ellipsoid = (radii == HEAD) if ellipsoid is None else bool(ellipsoid)
     verts, faces, uv = [], [], []
     for j in range(nz):
         v = j/(nz-1)
@@ -611,7 +632,7 @@ def decal(name, col, parent, mat, half, center, radii):
             u = i/(nx-1)
             x = (2*u-1)*width
             center_z = z + center
-            if radii == HEAD:
+            if is_ellipsoid:
                 curve = (center_z/radii[2])**2
             else:
                 curve = (max(0, abs(z)-.102)/.128)**2
@@ -626,13 +647,13 @@ def decal(name, col, parent, mat, half, center, radii):
     return obj
 
 
-def scalp(name, col, head, mat):
+def scalp(name, col, head, mat, head_radii=HEAD):
     verts, faces = [], []
     # Preserve v01c's authored crown rise and chestnut profile in addition
     # to the minimum radial allowance over the head and its ink.
-    rx = HEAD[0] + HAIR_RADIAL_OFFSET + .003
-    ry = HEAD[1] + HAIR_RADIAL_OFFSET + .0018
-    rz = HEAD[2] + HAIR_RADIAL_OFFSET + .0124
+    rx = head_radii[0] + HAIR_RADIAL_OFFSET + .003
+    ry = head_radii[1] + HAIR_RADIAL_OFFSET + .0018
+    rz = head_radii[2] + HAIR_RADIAL_OFFSET + .0124
     for j in range(14):
         for i in range(RING):
             a = math.tau*i/RING
@@ -688,8 +709,10 @@ def hood(name, col, head, cloth, lining):
 class RicksCharacter:
     """Built rig with body/head controls, curve limbs, and conformed artwork."""
 
-    def __init__(self, name, col, hooded, costume_image, expression_images, *, face_shadow=None, face_cutoff=None):
+    def __init__(self, name, col, hooded, costume_image, expression_images, *, face_shadow=None, face_cutoff=None,
+                 head_radii=None):
         self.name = name
+        self.head_radii = tuple(float(v) for v in (HEAD if head_radii is None else head_radii))
         self.root = empty(name, col)
         self.body = empty(name+" | body control", col, (0,0,.59), self.root)
         self.head = empty(name+" | head control", col, (0,0,FACE_CENTER-.59), self.body)
@@ -697,7 +720,7 @@ class RicksCharacter:
         ink = emission(name+" | matte stick ink", "#050508")
         face_material = make_lit_cel_face_material(name+" | lit cel face", hood_shadow=hooded,
                                                  shadow=face_shadow, cutoff=face_cutoff)
-        face = ball(name+" | ellipsoid head",col,(0,0,0),HEAD,face_material,
+        face = ball(name+" | ellipsoid head",col,(0,0,0),self.head_radii,face_material,
                     self.head,48,32)
         self.ink_modifiers.append(apply_character_ink(face,col))
         jacket = make_cel_character_material(name+" | costume", "#181A28" if hooded else "#E5A928")
@@ -715,7 +738,10 @@ class RicksCharacter:
                  .008,accent,self.body)
             ball(name+" | antique closure",col,(.032,-.093,.30),(.02,.007,.02),accent,self.body,12,10)
         else:
-            cap = scalp(name+" | shaped hair cap",col,self.head,tuft)
+            cap = scalp(name+" | shaped hair cap",col,self.head,tuft,head_radii=self.head_radii)
+            hx = self.head_radii[0] + .0125
+            hy = self.head_radii[1] + .0113
+            hz = self.head_radii[2] + .0224
             for stripe,(start,length,base,arc) in enumerate((
                 (3.43,1.17,.87,.20), (3.49,.88,1.031,.22), (3.73,.61,1.137,.13)
             )):
@@ -724,15 +750,15 @@ class RicksCharacter:
                     t = i/14
                     a = start+length*t
                     polar = base-.26*t-arc*math.sin(math.pi*t)
-                    points.append((.2525*math.sin(polar)*math.cos(a),.2225*math.sin(polar)*math.sin(a)+.012,
-                                   .248*math.cos(polar)+.017))
+                    points.append((hx*math.sin(polar)*math.cos(a),hy*math.sin(polar)*math.sin(a)+.012,
+                                   hz*math.cos(polar)+.017))
                 stroke = tube(name+" | swept chestnut highlight",col,points,.008-.0014*stripe,accent,self.head)
                 for i,point in enumerate(stroke.data.splines[0].bezier_points):
                     point.radius = .09+.91*math.sin(math.pi*i/14)**.88
         if costume_image is not None:
             mat = artwork(name+" | costume art", costume_image, cel=True)
             decal(name+" | conformed costume art", col, self.body, mat, (.102,.195),
-                  TORSO_CENTER-.59,(.125,.085,.128))
+                  TORSO_CENTER-.59,(.125,.085,.128),ellipsoid=False)
         hull = apply_character_ink(cap,col)
         self.ink_modifiers.append(hull)
         if not hooded:
@@ -745,7 +771,7 @@ class RicksCharacter:
         for expr, image in expression_images.items():
             mat = artwork(name+" | "+expr, image, cel=False)
             self.expressions[expr] = decal(name+" | "+expr,col,self.head,mat,(.175,.141),
-                                           .013 if hooded else -.024,HEAD)
+                                           .013 if hooded else -.024,self.head_radii,ellipsoid=True)
         self.arms, self.legs, self.feet = [],[],[]
         for side in (-1,1):
             side_name = "L" if side < 0 else "R"
@@ -839,8 +865,9 @@ class RicksCharacter:
                 for prop in ("hide_render","hide_viewport"):
                     self.sweat.keyframe_insert(prop,frame=frame)
             if sweat is not None:
+                hr = getattr(self, "head_radii", HEAD)
                 x,z = -.122-.024*sweat,.081-.060*sweat
-                y = -HEAD[1]*math.sqrt(1-(x/HEAD[0])**2-(z/HEAD[2])**2)
+                y = -hr[1]*math.sqrt(max(.01, 1-(x/hr[0])**2-(z/hr[2])**2))
                 self.sweat.location = (x,y-.008,z)
                 self.sweat.rotation_euler = (.10, -.24, -.44)
                 if frame is not None:
@@ -875,7 +902,7 @@ class RicksCharacter:
 
 def build_ricks_character(name, collection, *, hooded=False, art_dir=None, costume_image=None,
                           expression_images=None, initial_expression=None, face_shadow=None,
-                          face_cutoff=None):
+                          face_cutoff=None, head_radii=None):
     """Build a neckless, UV-ready Rick's stick-hybrid rig in `collection`.
 
     Pass paths or Blender images for `costume_image` and the named
@@ -883,6 +910,8 @@ def build_ricks_character(name, collection, *, hooded=False, art_dir=None, costu
     caller-supplied images taking precedence. Without art, the rig is ready
     for a later costume or face pass. Its forward direction is local -Y.
     Set `face_shadow` and `face_cutoff` for the shot lighting palette.
+    Pass `head_radii=ROUND_HEAD` (1:1) or `UPRIGHT_HEAD` (H/W=1.035) to
+    prevent horizontal oval head squash on new Shorts.
     """
     if bpy is None:
         raise RuntimeError("Build Rick's characters from Blender 4.2 Python.")
@@ -898,7 +927,7 @@ def build_ricks_character(name, collection, *, hooded=False, art_dir=None, costu
     if initial_expression is not None and initial_expression not in images:
         raise ValueError(f"Initial expression {initial_expression!r} has no supplied image.")
     rig = RicksCharacter(name,collection,hooded,costume_image,images,
-                         face_shadow=face_shadow,face_cutoff=face_cutoff)
+                         face_shadow=face_shadow,face_cutoff=face_cutoff,head_radii=head_radii)
     arms = [((side*.18,-.05,.12),(side*.18,.00,.24)) for side in (-1,1)]
     legs = [((side*.10,-.02,.027),(side*.095,-.06,.32)) for side in (-1,1)]
     rig.pose(None,(0,0,0),0,0,arms,legs,initial_expression)
@@ -1184,3 +1213,1526 @@ def eval_stick_walk_cycle(frame, route_at, yaw, *, start_frame=1, stop_frame=Non
 
     bounce = .060*strength*(.5-.5*math.cos(2*q))**1.18
     return StickWalkPose(root,yaw,.332*strength,bounce,tuple(arms),tuple(legs),tuple(feet),tuple(planted))
+
+
+# ------------------------------------------------------------------ V7 Foundation Upgrades
+# Additive helpers for:
+#   1. 1:1 / upright head proportions (banning squashed horizontal ovals)
+#   2. AgX bright paper-white faces + pixel-locked upper-face speech pairs
+#   3. 6:1 directional chiaroscuro lighting + contact AO + subtle light cones
+#   4. Multi-node PBR materials & continuous lofted/lathed geometry
+#   5. Deep-focus cutaway diorama camera & compositor (DOF strictly OFF)
+
+
+def _find_head_mesh(rig_or_head_obj):
+    """Resolve a rig or head object to its primary head mesh object."""
+    if hasattr(rig_or_head_obj, "head") and hasattr(rig_or_head_obj, "name"):
+        if bpy is not None:
+            by_name = bpy.data.objects.get(f"{rig_or_head_obj.name} | ellipsoid head")
+            if by_name is not None:
+                return by_name
+        children = getattr(rig_or_head_obj.head, "children", ())
+        for child in children:
+            if getattr(child, "type", None) == "MESH":
+                low = getattr(child, "name", "").lower()
+                if "ink" not in low and "hair" not in low and "hood" not in low and "decal" not in low:
+                    return child
+        return rig_or_head_obj.head
+    return rig_or_head_obj
+
+
+def measure_head_ratio(rig_or_head_obj):
+    """Measure a head mesh's width, depth, height and H/W ratio (detects oval squash).
+
+    Accepts a `RicksCharacter`, a `MascotRig` (with `head_bbox_ratio()`),
+    a Blender mesh object, or a pure-Python mock object exposing `.data.vertices`.
+    """
+    if hasattr(rig_or_head_obj, "head_bbox_ratio") and callable(rig_or_head_obj.head_bbox_ratio):
+        info = dict(rig_or_head_obj.head_bbox_ratio())
+        ratio = float(info.get("ratio", 1.0))
+        info.setdefault("hw_ratio", ratio)
+        info.setdefault("is_squashed", ratio < 0.98)
+        return info
+
+    head_obj = _find_head_mesh(rig_or_head_obj)
+    data = getattr(head_obj, "data", None)
+    verts = getattr(data, "vertices", None)
+    if not verts:
+        raise ValueError(f"Cannot measure head ratio: no mesh vertices on {head_obj!r}")
+
+    scale = tuple(getattr(head_obj, "scale", (1.0, 1.0, 1.0)))
+    parent = getattr(head_obj, "parent", None)
+    if parent is not None and hasattr(parent, "scale"):
+        ps = tuple(parent.scale)
+        scale = (scale[0] * ps[0], scale[1] * ps[1], scale[2] * ps[2])
+
+    xs = [float(v.co[0]) * abs(scale[0]) for v in verts]
+    ys = [float(v.co[1]) * abs(scale[1]) for v in verts]
+    zs = [float(v.co[2]) * abs(scale[2]) for v in verts]
+    width_m = max(xs) - min(xs)
+    depth_m = max(ys) - min(ys)
+    height_m = max(zs) - min(zs)
+    ratio = height_m / max(1e-9, width_m)
+    return {
+        "width_m": round(width_m, 6),
+        "depth_m": round(depth_m, 6),
+        "height_m": round(height_m, 6),
+        "ratio": round(ratio, 6),
+        "hw_ratio": round(ratio, 6),
+        "xz_aspect": round(width_m / max(1e-9, height_m), 6),
+        "is_squashed": ratio < 0.98,
+    }
+
+
+def normalize_head_proportions(rig, *, radii=ROUND_HEAD):
+    """Normalize a built RicksCharacter's head mesh, ink hull, hair, and decals to exact `radii`.
+
+    Eliminates horizontal oval squash (e.g. from legacy `HEAD` or `head_warp`) by
+    vertex-normalizing the head silhouette to `ROUND_HEAD` (1:1) or `UPRIGHT_HEAD`
+    (`H/W = 1.035`), resetting `rig.head.scale = (1, 1, 1)`, and re-conforming all
+    expression decals smoothly onto the new ellipsoid surface.
+    """
+    if bpy is None:
+        raise RuntimeError("normalize_head_proportions requires Blender 4.2 Python.")
+    rx, ry, rz = (float(radii[0]), float(radii[1]), float(radii[2]))
+    if min(rx, ry, rz) <= 0.0:
+        raise ValueError(f"Head radii must be positive, got {radii!r}")
+
+    rig.head.scale = (1.0, 1.0, 1.0)
+    face = _find_head_mesh(rig)
+    if face is None or face.type != "MESH":
+        raise RuntimeError(f"Could not find head mesh for {rig.name!r}")
+    face.scale = (1.0, 1.0, 1.0)
+
+    cur_rx = max(abs(v.co.x) for v in face.data.vertices)
+    cur_ry = max(abs(v.co.y) for v in face.data.vertices)
+    cur_rz = max(abs(v.co.z) for v in face.data.vertices)
+    sx = rx / max(1e-9, cur_rx)
+    sy = ry / max(1e-9, cur_ry)
+    sz = rz / max(1e-9, cur_rz)
+
+    expr_set = set(getattr(rig, "expressions", {}).values())
+    sweat = getattr(rig, "sweat", None)
+    for obj in rig.head.children_recursive:
+        if obj in expr_set or obj == sweat or obj.data is None:
+            continue
+        if obj.type == "MESH":
+            obj.scale = (1.0, 1.0, 1.0)
+            for v in obj.data.vertices:
+                v.co.x *= sx
+                v.co.y *= sy
+                v.co.z *= sz
+            obj.data.update()
+        elif obj.type == "CURVE":
+            obj.scale = (1.0, 1.0, 1.0)
+            for spline in obj.data.splines:
+                for p in spline.bezier_points:
+                    for attr in ("co", "handle_left", "handle_right"):
+                        pt = getattr(p, attr)
+                        setattr(p, attr, (pt.x * sx, pt.y * sy, pt.z * sz))
+
+    # Re-conform expression decals directly onto the normalized ellipsoid surface
+    for expr_obj in expr_set:
+        mesh_data = expr_obj.data
+        if not mesh_data.uv_layers:
+            for v in mesh_data.vertices:
+                v.co.x *= sx
+                v.co.z *= sz
+                inside = max(0.035, 1.0 - (v.co.x / rx) ** 2 - (v.co.z / rz) ** 2)
+                v.co.y = -ry * math.sqrt(inside) - 0.0033
+        else:
+            xs = [v.co.x for v in mesh_data.vertices]
+            zs = [v.co.z for v in mesh_data.vertices]
+            half_w = 0.5 * (max(xs) - min(xs)) * sx
+            half_h = 0.5 * (max(zs) - min(zs)) * sz
+            center_z = 0.5 * (max(zs) + min(zs)) * sz
+            uv_layer = mesh_data.uv_layers[0]
+            uv_by_vert = {}
+            for loop in mesh_data.loops:
+                uv_by_vert[loop.vertex_index] = tuple(uv_layer.data[loop.index].uv)
+            for vi, vert in enumerate(mesh_data.vertices):
+                u, v = uv_by_vert[vi]
+                x = (2.0 * u - 1.0) * half_w
+                z = (2.0 * v - 1.0) * half_h + center_z
+                inside = max(0.035, 1.0 - (x / rx) ** 2 - (z / rz) ** 2)
+                y = -ry * math.sqrt(inside) - 0.0033
+                vert.co = (x, y, z)
+        mesh_data.update()
+        expr_obj.visible_shadow = False
+
+    rig.head_radii = (rx, ry, rz)
+    return measure_head_ratio(rig)
+
+
+def _write_rgba_png(path, arr):
+    """Write an (H, W, 4) uint8 RGBA array to a standard 8-bit PNG without PIL."""
+    import struct
+    import zlib
+    import numpy as np
+
+    rgba = np.ascontiguousarray(arr, dtype=np.uint8)
+    if rgba.ndim != 3 or rgba.shape[2] != 4:
+        raise ValueError(f"Expected (H, W, 4) RGBA array, got {rgba.shape}")
+    h, w = rgba.shape[:2]
+    raw = np.concatenate(
+        [np.zeros((h, 1), dtype=np.uint8), rgba.reshape(h, w * 4)],
+        axis=1,
+    ).tobytes()
+
+    def _chunk(tag, payload):
+        crc = zlib.crc32(tag + payload) & 0xFFFFFFFF
+        return struct.pack(">I", len(payload)) + tag + payload + struct.pack(">I", crc)
+
+    ihdr = struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)
+    png_bytes = (
+        b"\x89PNG\r\n\x1a\n"
+        + _chunk(b"IHDR", ihdr)
+        + _chunk(b"IDAT", zlib.compress(raw, level=6))
+        + _chunk(b"IEND", b"")
+    )
+    out_path = Path(path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_bytes(png_bytes)
+    return out_path
+
+
+def _read_rgba_png(path):
+    """Read an 8-bit non-interlaced PNG (RGBA/RGB/GA/G) into an (H, W, 4) uint8 array without PIL."""
+    import struct
+    import zlib
+    import numpy as np
+
+    data = Path(path).read_bytes()
+    if data[:8] != b"\x89PNG\r\n\x1a\n":
+        raise ValueError(f"Not a valid PNG file: {path}")
+
+    pos = 8
+    w = h = bit_depth = color_type = interlace = None
+    idat_parts = []
+    while pos + 8 <= len(data):
+        length = struct.unpack(">I", data[pos:pos + 4])[0]
+        tag = data[pos + 4:pos + 8]
+        payload = data[pos + 8:pos + 8 + length]
+        pos += 12 + length
+        if tag == b"IHDR":
+            w, h, bit_depth, color_type, _comp, _flt, interlace = struct.unpack(">IIBBBBB", payload)
+        elif tag == b"IDAT":
+            idat_parts.append(payload)
+        elif tag == b"IEND":
+            break
+
+    if w is None or h is None or bit_depth != 8 or interlace != 0:
+        raise ValueError(f"Unsupported PNG header in {path}: bit_depth={bit_depth}, interlace={interlace}")
+    channels_map = {0: 1, 2: 3, 4: 2, 6: 4}
+    if color_type not in channels_map:
+        raise ValueError(f"Unsupported PNG color_type={color_type} in {path} (install Pillow for indexed PNGs).")
+    bpp = channels_map[color_type]
+    stride = w * bpp
+    raw = zlib.decompress(b"".join(idat_parts))
+
+    out = np.zeros((h, stride), dtype=np.uint8)
+    idx = 0
+    for y in range(h):
+        ftype = raw[idx]
+        row = np.frombuffer(raw, dtype=np.uint8, count=stride, offset=idx + 1).copy()
+        idx += 1 + stride
+        prior = out[y - 1] if y > 0 else np.zeros(stride, dtype=np.uint8)
+        if ftype == 0:
+            out[y] = row
+        elif ftype == 1:  # Sub
+            for i in range(bpp, stride):
+                row[i] = (int(row[i]) + int(row[i - bpp])) & 0xFF
+            out[y] = row
+        elif ftype == 2:  # Up
+            out[y] = ((row.astype(np.uint16) + prior.astype(np.uint16)) & 0xFF).astype(np.uint8)
+        elif ftype == 3:  # Average
+            for i in range(stride):
+                a = int(row[i - bpp]) if i >= bpp else 0
+                b = int(prior[i])
+                row[i] = (int(row[i]) + ((a + b) >> 1)) & 0xFF
+            out[y] = row
+        elif ftype == 4:  # Paeth
+            for i in range(stride):
+                a = int(row[i - bpp]) if i >= bpp else 0
+                b = int(prior[i])
+                c = int(prior[i - bpp]) if i >= bpp else 0
+                p = a + b - c
+                pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                pr = a if (pa <= pb and pa <= pc) else (b if pb <= pc else c)
+                row[i] = (int(row[i]) + pr) & 0xFF
+            out[y] = row
+        else:
+            raise ValueError(f"Unsupported PNG filter type {ftype} in {path}")
+
+    img = out.reshape((h, w, bpp))
+    if color_type == 6:
+        return img
+    rgba = np.full((h, w, 4), 255, dtype=np.uint8)
+    if color_type == 2:
+        rgba[:, :, :3] = img
+    elif color_type == 4:
+        rgba[:, :, :3] = img[:, :, 0:1]
+        rgba[:, :, 3] = img[:, :, 1]
+    else:  # color_type == 0
+        rgba[:, :, :3] = img[:, :, 0:1]
+    return rgba
+
+
+def _load_rgba_array(source):
+    """Load a Path, str, PIL Image, or numpy array into an (H, W, C) uint8 array.
+
+    Uses Pillow when available and falls back cleanly to pure-NumPy PNG decoding
+    inside stock Blender 4.2 Python where Pillow is not preinstalled.
+    """
+    import numpy as np
+
+    if isinstance(source, np.ndarray):
+        arr = source
+        if arr.ndim == 2:
+            arr = arr[:, :, None]
+        return arr.astype(np.uint8, copy=False)
+
+    try:
+        from PIL import Image
+    except ModuleNotFoundError:
+        Image = None
+
+    if isinstance(source, (str, Path)):
+        if Image is not None:
+            with Image.open(source) as im:
+                return np.asarray(im.convert("RGBA"), dtype=np.uint8)
+        return _read_rgba_png(source)
+
+    if Image is not None and isinstance(source, Image.Image):
+        return np.asarray(source.convert("RGBA"), dtype=np.uint8)
+    raise TypeError(f"Unsupported image source type: {type(source)!r}")
+
+
+def verify_upper_face_lock(img_closed, img_open, *, split_y_frac=0.55, max_abs_diff=0):
+    """Prove pixel-locked upper-face speech (zero eye/brow flutter when lips move).
+
+    Compares the upper face (`y < int(height * split_y_frac)`) between a closed-mouth
+    expression and its open/talk counterpart. Pure-Python (NumPy; Pillow optional; no bpy).
+    """
+    if not 0.0 < float(split_y_frac) < 1.0:
+        raise ValueError(f"split_y_frac must be in (0, 1), got {split_y_frac!r}")
+    import numpy as np
+
+    a = _load_rgba_array(img_closed)
+    b = _load_rgba_array(img_open)
+    if a.shape != b.shape:
+        raise ValueError(f"Expression pair dimensions mismatch: {a.shape} vs {b.shape}")
+
+    h, w = a.shape[:2]
+    split_y = int(round(h * float(split_y_frac)))
+    upper_diff = np.abs(a[:split_y].astype(np.int16) - b[:split_y].astype(np.int16))
+    lower_diff = np.abs(a[split_y:].astype(np.int16) - b[split_y:].astype(np.int16))
+    max_diff = int(upper_diff.max()) if upper_diff.size else 0
+    nonzero_pixels = int(np.any(upper_diff > int(max_abs_diff), axis=-1).sum())
+    lower_changed = int(np.any(lower_diff > 0, axis=-1).sum())
+    passed = max_diff <= int(max_abs_diff)
+    return {
+        "pass": passed,
+        "locked": passed,
+        "max_diff": max_diff,
+        "max_abs_diff": int(max_abs_diff),
+        "nonzero_pixels": nonzero_pixels,
+        "total_upper_pixels": int(split_y * w),
+        "lower_changed_pixels": lower_changed,
+        "split_y_px": split_y,
+        "split_y_frac": float(split_y_frac),
+        "size": (int(w), int(h)),
+    }
+
+
+def _hex_rgba_u8(hex_color, alpha=255):
+    c = hex_color.lstrip("#")
+    return (int(c[0:2], 16), int(c[2:4], 16), int(c[4:6], 16), int(alpha))
+
+
+def _draw_pill_curve(draw, pts, width, fill):
+    w = max(1, int(round(width)))
+    pts = [(float(x), float(y)) for x, y in pts]
+    draw.line(pts, fill=fill, width=w, joint="curve")
+    r = w / 2.0
+    for x, y in (pts[0], pts[-1]):
+        draw.ellipse((x - r, y - r, x + r, y + r), fill=fill)
+
+
+def _cubic_pts(p0, p1, p2, p3, steps=32):
+    out = []
+    for i in range(steps + 1):
+        t = i / steps
+        u = 1.0 - t
+        b0, b1, b2, b3 = u ** 3, 3 * u * u * t, 3 * u * t * t, t ** 3
+        out.append((
+            b0 * p0[0] + b1 * p1[0] + b2 * p2[0] + b3 * p3[0],
+            b0 * p0[1] + b1 * p1[1] + b2 * p2[1] + b3 * p3[1],
+        ))
+    return out
+
+
+def _render_expression_pair_numpy(
+    out_dir,
+    name,
+    *,
+    mood,
+    sz,
+    split_y_frac,
+    ink_rgba,
+    sclera_rgba,
+    lid_rgba,
+    mouth_rgba,
+    tongue_rgba,
+    teeth_rgba,
+):
+    """Crisp 2x-supersampled pure-NumPy fallback renderer (zero PIL dependency)."""
+    import numpy as np
+
+    ss = 2
+    W = H = sz * ss
+    split_y_px = int(round(sz * float(split_y_frac)))
+
+    def _rgba_f(c):
+        return np.array([c[0] / 255.0, c[1] / 255.0, c[2] / 255.0, c[3] / 255.0], dtype=np.float32)
+
+    ink_f = _rgba_f(ink_rgba)
+    sclera_f = _rgba_f(sclera_rgba)
+    lid_f = _rgba_f(lid_rgba)
+    mouth_f = _rgba_f(mouth_rgba)
+    tongue_f = _rgba_f(tongue_rgba)
+    teeth_f = _rgba_f(teeth_rgba)
+
+    def _blend_over(dst, y0, y1, x0, x1, color_f, cov):
+        sa = np.clip(cov, 0.0, 1.0) * color_f[3]
+        if not np.any(sa > 0.0):
+            return
+        sub = dst[y0:y1, x0:x1]
+        da = sub[:, :, 3]
+        out_a = sa + da * (1.0 - sa)
+        safe = np.where(out_a > 1e-6, out_a, 1.0)
+        for ch in range(3):
+            sub[:, :, ch] = (color_f[ch] * sa + sub[:, :, ch] * da * (1.0 - sa)) / safe
+        sub[:, :, 3] = out_a
+
+    def _alpha_composite_arr(base_f, over_f):
+        out = base_f.copy()
+        sa = over_f[:, :, 3]
+        da = out[:, :, 3]
+        out_a = sa + da * (1.0 - sa)
+        safe = np.where(out_a > 1e-6, out_a, 1.0)
+        for ch in range(3):
+            out[:, :, ch] = (over_f[:, :, ch] * sa + out[:, :, ch] * da * (1.0 - sa)) / safe
+        out[:, :, 3] = out_a
+        return out
+
+    def _bbox(x0, y0, x1, y1, pad=2):
+        ix0 = max(0, int(math.floor(x0 - pad)))
+        iy0 = max(0, int(math.floor(y0 - pad)))
+        ix1 = min(W, int(math.ceil(x1 + pad)))
+        iy1 = min(H, int(math.ceil(y1 + pad)))
+        return ix0, iy0, ix1, iy1
+
+    def _ellipse_cov(cx, cy, rx, ry, ix0, iy0, ix1, iy1):
+        xs = np.arange(ix0, ix1, dtype=np.float32) + 0.5
+        ys = np.arange(iy0, iy1, dtype=np.float32) + 0.5
+        dx = (xs[None, :] - cx) / max(1e-3, rx)
+        dy = (ys[:, None] - cy) / max(1e-3, ry)
+        dist = np.sqrt(dx * dx + dy * dy)
+        aa = 1.0 / max(1.0, min(rx, ry))
+        return np.clip((1.0 - dist) / max(1e-4, aa) + 0.5, 0.0, 1.0)
+
+    def _fill_ellipse(dst, cx, cy, rx, ry, color_f):
+        ix0, iy0, ix1, iy1 = _bbox(cx - rx, cy - ry, cx + rx, cy + ry)
+        if ix1 <= ix0 or iy1 <= iy0:
+            return
+        cov = _ellipse_cov(cx, cy, rx, ry, ix0, iy0, ix1, iy1)
+        _blend_over(dst, iy0, iy1, ix0, ix1, color_f, cov)
+
+    def _stroke_ellipse(dst, cx, cy, rx, ry, stroke_w, color_f):
+        half_w = 0.5 * stroke_w
+        ix0, iy0, ix1, iy1 = _bbox(cx - rx - half_w, cy - ry - half_w, cx + rx + half_w, cy + ry + half_w)
+        if ix1 <= ix0 or iy1 <= iy0:
+            return
+        outer = _ellipse_cov(cx, cy, rx + half_w, ry + half_w, ix0, iy0, ix1, iy1)
+        inner = _ellipse_cov(cx, cy, max(0.5, rx - half_w), max(0.5, ry - half_w), ix0, iy0, ix1, iy1)
+        _blend_over(dst, iy0, iy1, ix0, ix1, color_f, np.clip(outer - inner, 0.0, 1.0))
+
+    def _fill_rect(dst, x0, y0, x1, y1, color_f):
+        ix0, iy0, ix1, iy1 = _bbox(x0, y0, x1, y1, pad=0)
+        if ix1 <= ix0 or iy1 <= iy0:
+            return
+        cov = np.ones((iy1 - iy0, ix1 - ix0), dtype=np.float32)
+        _blend_over(dst, iy0, iy1, ix0, ix1, color_f, cov)
+
+    def _pill_curve(dst, pts, width, color_f):
+        rad = max(0.5, 0.5 * float(width))
+        pxs = [p[0] for p in pts]
+        pys = [p[1] for p in pts]
+        ix0, iy0, ix1, iy1 = _bbox(min(pxs) - rad, min(pys) - rad, max(pxs) + rad, max(pys) + rad)
+        if ix1 <= ix0 or iy1 <= iy0:
+            return
+        xs = np.arange(ix0, ix1, dtype=np.float32)[None, :] + 0.5
+        ys = np.arange(iy0, iy1, dtype=np.float32)[:, None] + 0.5
+        min_d2 = np.full((iy1 - iy0, ix1 - ix0), np.inf, dtype=np.float32)
+        for (ax, ay), (bx, by) in zip(pts, pts[1:]):
+            vx, vy = bx - ax, by - ay
+            l2 = vx * vx + vy * vy
+            if l2 < 1e-6:
+                d2 = (xs - ax) ** 2 + (ys - ay) ** 2
+            else:
+                t = np.clip(((xs - ax) * vx + (ys - ay) * vy) / l2, 0.0, 1.0)
+                d2 = (xs - (ax + t * vx)) ** 2 + (ys - (ay + t * vy)) ** 2
+            min_d2 = np.minimum(min_d2, d2)
+        dist = np.sqrt(min_d2)
+        cov = np.clip(rad - dist + 0.5, 0.0, 1.0)
+        _blend_over(dst, iy0, iy1, ix0, ix1, color_f, cov)
+
+    def draw_eye(canvas, cx, cy, *, r_outer, ring_w, pupil_r, dx=0.0, dy=0.0, lid_top=0.0, lid_bot=0.0):
+        _fill_ellipse(canvas, cx, cy, r_outer, r_outer, ink_f)
+        r_in = max(1.0, r_outer - ring_w)
+        _fill_ellipse(canvas, cx, cy, r_in, r_in, sclera_f)
+
+        layer = np.zeros((H, W, 4), dtype=np.float32)
+        px, py = cx + dx, cy + dy
+        _fill_ellipse(layer, px, py, pupil_r, pupil_r, ink_f)
+        cr = max(3.0, pupil_r * 0.28)
+        _fill_ellipse(layer, px - pupil_r * 0.35, py - pupil_r * 0.35, cr, cr, sclera_f)
+        if lid_top > 0.0:
+            ly = (cy - r_in) + (2.0 * r_in) * lid_top
+            _fill_rect(layer, cx - r_outer, cy - r_outer, cx + r_outer, ly, lid_f)
+            _fill_rect(layer, cx - r_outer, ly - ring_w * 0.45, cx + r_outer, ly + ring_w * 0.45, ink_f)
+        if lid_bot > 0.0:
+            ly = (cy + r_in) - (2.0 * r_in) * lid_bot
+            _fill_rect(layer, cx - r_outer, ly, cx + r_outer, cy + r_outer, lid_f)
+            _fill_rect(layer, cx - r_outer, ly - ring_w * 0.45, cx + r_outer, ly + ring_w * 0.45, ink_f)
+
+        ix0, iy0, ix1, iy1 = _bbox(cx - r_in, cy - r_in, cx + r_in, cy + r_in)
+        mask = np.zeros((H, W), dtype=np.float32)
+        if ix1 > ix0 and iy1 > iy0:
+            mask[iy0:iy1, ix0:ix1] = _ellipse_cov(cx, cy, r_in, r_in, ix0, iy0, ix1, iy1)
+        layer[:, :, 3] *= mask
+        canvas[:] = _alpha_composite_arr(canvas, layer)
+        _stroke_ellipse(canvas, cx, cy, r_outer - ring_w * 0.5, r_outer - ring_w * 0.5, ring_w, ink_f)
+
+    # 1. Upper face ONCE strictly above split_y_frac
+    upper_hi = np.zeros((H, W, 4), dtype=np.float32)
+    cx_l, cx_r = W * 0.325, W * 0.675
+    eye_y = H * 0.405
+    r_eye = W * 0.112
+    ring_w = max(4.0, W * 0.022)
+    pupil_r = W * 0.043
+    brow_w = max(5.0, W * 0.032)
+
+    if mood == "neutral":
+        for s, cx in ((-1, cx_l), (1, cx_r)):
+            draw_eye(upper_hi, cx, eye_y, r_outer=r_eye, ring_w=ring_w, pupil_r=pupil_r, dy=H * 0.004)
+            _pill_curve(upper_hi, _cubic_pts(
+                (cx - W * 0.095, H * 0.250 + s * H * 0.004), (cx - W * 0.03, H * 0.224),
+                (cx + W * 0.03, H * 0.224), (cx + W * 0.095, H * 0.250 - s * H * 0.004)), brow_w, ink_f)
+    elif mood == "happy":
+        for s, cx in ((-1, cx_l), (1, cx_r)):
+            draw_eye(upper_hi, cx, eye_y, r_outer=r_eye, ring_w=ring_w, pupil_r=pupil_r * 1.05, lid_bot=0.22)
+            _pill_curve(upper_hi, _cubic_pts(
+                (cx - W * 0.095, H * 0.238), (cx - W * 0.03, H * 0.198),
+                (cx + W * 0.03, H * 0.198), (cx + W * 0.095, H * 0.238)), brow_w, ink_f)
+    elif mood == "smug":
+        for s, cx in ((-1, cx_l), (1, cx_r)):
+            draw_eye(upper_hi, cx, eye_y, r_outer=r_eye, ring_w=ring_w, pupil_r=pupil_r * 0.92,
+                     dx=W * 0.015, lid_top=0.40)
+            _pill_curve(upper_hi, _cubic_pts(
+                (cx - W * 0.095, H * (0.242 if s < 0 else 0.220)),
+                (cx, H * (0.226 if s < 0 else 0.205)),
+                (cx + W * 0.05, H * (0.232 if s < 0 else 0.214)),
+                (cx + W * 0.095, H * (0.252 if s < 0 else 0.232))), brow_w, ink_f)
+    elif mood == "skeptical":
+        draw_eye(upper_hi, cx_l, eye_y, r_outer=r_eye, ring_w=ring_w, pupil_r=pupil_r * 0.90,
+                 dx=W * 0.025, lid_top=0.35)
+        draw_eye(upper_hi, cx_r, eye_y, r_outer=r_eye * 1.04, ring_w=ring_w, pupil_r=pupil_r * 0.90,
+                 dx=W * 0.025, lid_top=0.10)
+        _pill_curve(upper_hi, _cubic_pts(
+            (cx_l - W * 0.095, H * 0.255), (cx_l, H * 0.245),
+            (cx_l + W * 0.05, H * 0.250), (cx_l + W * 0.095, H * 0.268)), brow_w, ink_f)
+        _pill_curve(upper_hi, _cubic_pts(
+            (cx_r - W * 0.095, H * 0.225), (cx_r - W * 0.02, H * 0.185),
+            (cx_r + W * 0.04, H * 0.185), (cx_r + W * 0.095, H * 0.228)), brow_w, ink_f)
+    elif mood == "surprised":
+        for s, cx in ((-1, cx_l), (1, cx_r)):
+            draw_eye(upper_hi, cx, eye_y, r_outer=r_eye * 1.08, ring_w=ring_w, pupil_r=pupil_r * 0.72)
+            _pill_curve(upper_hi, _cubic_pts(
+                (cx - W * 0.095, H * 0.215), (cx - W * 0.03, H * 0.175),
+                (cx + W * 0.03, H * 0.175), (cx + W * 0.095, H * 0.215)), brow_w, ink_f)
+    elif mood == "worried":
+        for s, cx in ((-1, cx_l), (1, cx_r)):
+            draw_eye(upper_hi, cx, eye_y, r_outer=r_eye, ring_w=ring_w, pupil_r=pupil_r * 0.88, dy=H * 0.01)
+            _pill_curve(upper_hi, _cubic_pts(
+                (cx - W * 0.095, H * (0.265 if s < 0 else 0.218)),
+                (cx - W * 0.03, H * 0.236),
+                (cx + W * 0.03, H * 0.236),
+                (cx + W * 0.095, H * (0.218 if s < 0 else 0.265))), brow_w, ink_f)
+
+    def _downsample_2x(arr_f):
+        # Premultiply -> 2x2 box average -> unpremultiply for crisp fringe-free AA
+        pm = arr_f.copy()
+        pm[:, :, :3] *= pm[:, :, 3:4]
+        ds = pm.reshape(sz, ss, sz, ss, 4).mean(axis=(1, 3))
+        a = ds[:, :, 3:4]
+        safe = np.where(a > 1e-6, a, 1.0)
+        ds[:, :, :3] = np.clip(ds[:, :, :3] / safe, 0.0, 1.0)
+        ds[:, :, 3] = np.clip(ds[:, :, 3], 0.0, 1.0)
+        return ds
+
+    upper_down = _downsample_2x(upper_hi)
+
+    def _build_mouth_layer(is_open):
+        layer_hi = np.zeros((H, W, 4), dtype=np.float32)
+        mx, my = W * 0.50, H * 0.72
+        mw = W * 0.15
+        stroke = max(5.0, W * 0.026)
+        if not is_open:
+            if mood in ("happy", "smug"):
+                _pill_curve(layer_hi, _cubic_pts(
+                    (mx - mw, my - H * 0.015), (mx - mw * 0.4, my + H * 0.045),
+                    (mx + mw * 0.4, my + H * 0.045), (mx + mw, my - H * 0.025)), stroke, ink_f)
+            elif mood in ("worried", "skeptical"):
+                _pill_curve(layer_hi, _cubic_pts(
+                    (mx - mw * 0.85, my + H * 0.020), (mx - mw * 0.3, my - H * 0.018),
+                    (mx + mw * 0.3, my - H * 0.018), (mx + mw * 0.85, my + H * 0.020)), stroke, ink_f)
+            elif mood == "surprised":
+                r_o = W * 0.055
+                _fill_ellipse(layer_hi, mx, my, r_o, r_o * 1.1, mouth_f)
+                _stroke_ellipse(layer_hi, mx, my, r_o, r_o * 1.1, stroke, ink_f)
+            else:
+                _pill_curve(layer_hi, _cubic_pts(
+                    (mx - mw * 0.82, my), (mx - mw * 0.3, my + H * 0.014),
+                    (mx + mw * 0.3, my + H * 0.014), (mx + mw * 0.82, my)), stroke, ink_f)
+        else:
+            rx_m = W * (0.105 if mood != "surprised" else 0.088)
+            ry_m = H * (0.078 if mood != "surprised" else 0.095)
+            cy_m = my + ry_m * 0.15
+            _fill_ellipse(layer_hi, mx, cy_m, rx_m, ry_m * 0.90, mouth_f)
+            interior = np.zeros((H, W, 4), dtype=np.float32)
+            _fill_rect(interior, mx - rx_m, my - ry_m * 0.80, mx + rx_m, my - ry_m * 0.30, teeth_f)
+            _fill_ellipse(interior, mx, my + ry_m * 0.65, rx_m * 0.65, ry_m * 0.50, tongue_f)
+            ix0, iy0, ix1, iy1 = _bbox(mx - rx_m, cy_m - ry_m * 0.90, mx + rx_m, cy_m + ry_m * 0.90)
+            m_mask = np.zeros((H, W), dtype=np.float32)
+            if ix1 > ix0 and iy1 > iy0:
+                m_mask[iy0:iy1, ix0:ix1] = _ellipse_cov(mx, cy_m, rx_m, ry_m * 0.90, ix0, iy0, ix1, iy1)
+            interior[:, :, 3] *= m_mask
+            layer_hi[:] = _alpha_composite_arr(layer_hi, interior)
+            _stroke_ellipse(layer_hi, mx, cy_m, rx_m, ry_m * 0.90, stroke, ink_f)
+
+        mouth_down = _downsample_2x(layer_hi)
+        mouth_down[:split_y_px, :, :] = 0.0
+        return mouth_down
+
+    def _compose_u8(mouth_down):
+        comp = _alpha_composite_arr(upper_down, mouth_down)
+        arr = np.round(np.clip(comp, 0.0, 1.0) * 255.0).astype(np.uint8)
+        zero_a = arr[:, :, 3] <= 2
+        arr[zero_a, 0:3] = ink_rgba[:3]
+        arr[zero_a, 3] = 0
+        return arr
+
+    closed_arr = _compose_u8(_build_mouth_layer(False))
+    talk_arr = _compose_u8(_build_mouth_layer(True))
+    lock = verify_upper_face_lock(closed_arr, talk_arr, split_y_frac=split_y_frac, max_abs_diff=0)
+    if not lock["pass"]:
+        raise RuntimeError(f"Pixel-locked upper face assertion failed: {lock}")
+
+    closed_path = talk_path = None
+    if out_dir is not None:
+        folder = Path(out_dir)
+        folder.mkdir(parents=True, exist_ok=True)
+        closed_path = _write_rgba_png(folder / f"{name}_closed.png", closed_arr)
+        talk_path = _write_rgba_png(folder / f"{name}_talk.png", talk_arr)
+
+    return {
+        "closed": closed_path,
+        "talk": talk_path,
+        "closed_image": closed_arr,
+        "talk_image": talk_arr,
+        "lock": lock,
+    }
+
+
+def render_pixel_locked_expression_pair(
+    out_dir,
+    name,
+    *,
+    mood="neutral",
+    size=1024,
+    split_y_frac=0.55,
+    outline_color="#08080C",
+    sclera_color="#FFFFFF",
+    face_lid_color=PAPER_WHITE_FACE,
+    mouth_fill="#3A151B",
+    tongue_color="#E86A7A",
+    teeth_color="#FFFFFF",
+    upper_drawer=None,
+    mouth_closed_drawer=None,
+    mouth_open_drawer=None,
+):
+    """Render a 2x-supersampled closed/talk RGBA expression pair with 0-diff upper-face lock.
+
+    Draws eyes and eyebrows ONCE in the upper region (`y < split_y_frac`) and
+    composites closed vs open mouths strictly below `split_y_frac` after
+    downsampling, mathematically guaranteeing 0 pixel difference on `y < split_y_px`
+    so eyes never blink or flutter during dialogue lip-sync.
+
+    Uses Pillow when installed and falls back automatically to a pure-NumPy + stdlib
+    PNG renderer inside stock Blender 4.2 Python (no `PIL` required). Pass
+    `out_dir=None` to skip disk writes.
+    """
+    import numpy as np
+
+    if not 0.35 <= float(split_y_frac) <= 0.75:
+        raise ValueError(f"split_y_frac should be in [0.35, 0.75], got {split_y_frac!r}")
+    valid_moods = ("neutral", "happy", "smug", "skeptical", "surprised", "worried")
+    if upper_drawer is None and mood not in valid_moods:
+        raise ValueError(f"Unknown mood {mood!r}; expected one of {valid_moods}")
+
+    sz = int(size)
+    ink_rgba = _hex_rgba_u8(outline_color, 255)
+    sclera_rgba = _hex_rgba_u8(sclera_color, 255)
+    lid_rgba = _hex_rgba_u8(face_lid_color, 255)
+    mouth_rgba = _hex_rgba_u8(mouth_fill, 255)
+    tongue_rgba = _hex_rgba_u8(tongue_color, 255)
+    teeth_rgba = _hex_rgba_u8(teeth_color, 255)
+
+    try:
+        from PIL import Image, ImageChops, ImageDraw
+    except ModuleNotFoundError:
+        if any(fn is not None for fn in (upper_drawer, mouth_closed_drawer, mouth_open_drawer)):
+            raise RuntimeError("Custom PIL ImageDraw callbacks require Pillow (PIL).")
+        return _render_expression_pair_numpy(
+            out_dir,
+            name,
+            mood=mood,
+            sz=sz,
+            split_y_frac=split_y_frac,
+            ink_rgba=ink_rgba,
+            sclera_rgba=sclera_rgba,
+            lid_rgba=lid_rgba,
+            mouth_rgba=mouth_rgba,
+            tongue_rgba=tongue_rgba,
+            teeth_rgba=teeth_rgba,
+        )
+
+    ss = 2
+    W = H = sz * ss
+    split_y_px = int(round(sz * float(split_y_frac)))
+    bg_transparent = _hex_rgba_u8(outline_color, 0)
+
+    def draw_eye(canvas, cx, cy, *, r_outer, ring_w, pupil_r, dx=0.0, dy=0.0, lid_top=0.0, lid_bot=0.0):
+        dr = ImageDraw.Draw(canvas)
+        dr.ellipse((cx - r_outer, cy - r_outer, cx + r_outer, cy + r_outer), fill=ink_rgba)
+        r_in = r_outer - ring_w
+        dr.ellipse((cx - r_in, cy - r_in, cx + r_in, cy + r_in), fill=sclera_rgba)
+
+        layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        ed = ImageDraw.Draw(layer)
+        px, py = cx + dx, cy + dy
+        ed.ellipse((px - pupil_r, py - pupil_r, px + pupil_r, py + pupil_r), fill=ink_rgba)
+        cr = max(3.0, pupil_r * 0.28)
+        ed.ellipse(
+            (px - pupil_r * 0.35 - cr, py - pupil_r * 0.35 - cr,
+             px - pupil_r * 0.35 + cr, py - pupil_r * 0.35 + cr),
+            fill=sclera_rgba,
+        )
+        if lid_top > 0.0:
+            ly = (cy - r_in) + (2.0 * r_in) * lid_top
+            ed.rectangle((cx - r_outer, cy - r_outer, cx + r_outer, ly), fill=lid_rgba)
+            ed.rectangle((cx - r_outer, ly - ring_w * 0.45, cx + r_outer, ly + ring_w * 0.45), fill=ink_rgba)
+        if lid_bot > 0.0:
+            ly = (cy + r_in) - (2.0 * r_in) * lid_bot
+            ed.rectangle((cx - r_outer, ly, cx + r_outer, cy + r_outer), fill=lid_rgba)
+            ed.rectangle((cx - r_outer, ly - ring_w * 0.45, cx + r_outer, ly + ring_w * 0.45), fill=ink_rgba)
+
+        mask = Image.new("L", (W, H), 0)
+        ImageDraw.Draw(mask).ellipse((cx - r_in, cy - r_in, cx + r_in, cy + r_in), fill=255)
+        layer.putalpha(ImageChops.multiply(layer.getchannel("A"), mask))
+        canvas.alpha_composite(layer)
+        ImageDraw.Draw(canvas).ellipse(
+            (cx - r_outer, cy - r_outer, cx + r_outer, cy + r_outer),
+            outline=ink_rgba,
+            width=max(1, int(round(ring_w))),
+        )
+
+    # 1. Draw upper face ONCE strictly above split_y_frac
+    upper_hi = Image.new("RGBA", (W, H), bg_transparent)
+    ud = ImageDraw.Draw(upper_hi)
+    if upper_drawer is not None:
+        upper_drawer(ud, W, H)
+    else:
+        cx_l, cx_r = W * 0.325, W * 0.675
+        eye_y = H * 0.405
+        r_eye = W * 0.112
+        ring_w = max(4.0, W * 0.022)
+        pupil_r = W * 0.043
+        brow_w = max(5.0, W * 0.032)
+        if mood == "neutral":
+            for s, cx in ((-1, cx_l), (1, cx_r)):
+                draw_eye(upper_hi, cx, eye_y, r_outer=r_eye, ring_w=ring_w, pupil_r=pupil_r, dy=H * 0.004)
+                ud = ImageDraw.Draw(upper_hi)
+                _draw_pill_curve(ud, _cubic_pts(
+                    (cx - W * 0.095, H * 0.250 + s * H * 0.004), (cx - W * 0.03, H * 0.224),
+                    (cx + W * 0.03, H * 0.224), (cx + W * 0.095, H * 0.250 - s * H * 0.004)), brow_w, ink_rgba)
+        elif mood == "happy":
+            for s, cx in ((-1, cx_l), (1, cx_r)):
+                draw_eye(upper_hi, cx, eye_y, r_outer=r_eye, ring_w=ring_w, pupil_r=pupil_r * 1.05, lid_bot=0.22)
+                ud = ImageDraw.Draw(upper_hi)
+                _draw_pill_curve(ud, _cubic_pts(
+                    (cx - W * 0.095, H * 0.238), (cx - W * 0.03, H * 0.198),
+                    (cx + W * 0.03, H * 0.198), (cx + W * 0.095, H * 0.238)), brow_w, ink_rgba)
+        elif mood == "smug":
+            for s, cx in ((-1, cx_l), (1, cx_r)):
+                draw_eye(upper_hi, cx, eye_y, r_outer=r_eye, ring_w=ring_w, pupil_r=pupil_r * 0.92,
+                         dx=W * 0.015, lid_top=0.40)
+                ud = ImageDraw.Draw(upper_hi)
+                _draw_pill_curve(ud, _cubic_pts(
+                    (cx - W * 0.095, H * (0.242 if s < 0 else 0.220)),
+                    (cx, H * (0.226 if s < 0 else 0.205)),
+                    (cx + W * 0.05, H * (0.232 if s < 0 else 0.214)),
+                    (cx + W * 0.095, H * (0.252 if s < 0 else 0.232))), brow_w, ink_rgba)
+        elif mood == "skeptical":
+            draw_eye(upper_hi, cx_l, eye_y, r_outer=r_eye, ring_w=ring_w, pupil_r=pupil_r * 0.90,
+                     dx=W * 0.025, lid_top=0.35)
+            draw_eye(upper_hi, cx_r, eye_y, r_outer=r_eye * 1.04, ring_w=ring_w, pupil_r=pupil_r * 0.90,
+                     dx=W * 0.025, lid_top=0.10)
+            ud = ImageDraw.Draw(upper_hi)
+            _draw_pill_curve(ud, _cubic_pts(
+                (cx_l - W * 0.095, H * 0.255), (cx_l, H * 0.245),
+                (cx_l + W * 0.05, H * 0.250), (cx_l + W * 0.095, H * 0.268)), brow_w, ink_rgba)
+            _draw_pill_curve(ud, _cubic_pts(
+                (cx_r - W * 0.095, H * 0.225), (cx_r - W * 0.02, H * 0.185),
+                (cx_r + W * 0.04, H * 0.185), (cx_r + W * 0.095, H * 0.228)), brow_w, ink_rgba)
+        elif mood == "surprised":
+            for s, cx in ((-1, cx_l), (1, cx_r)):
+                draw_eye(upper_hi, cx, eye_y, r_outer=r_eye * 1.08, ring_w=ring_w, pupil_r=pupil_r * 0.72)
+                ud = ImageDraw.Draw(upper_hi)
+                _draw_pill_curve(ud, _cubic_pts(
+                    (cx - W * 0.095, H * 0.215), (cx - W * 0.03, H * 0.175),
+                    (cx + W * 0.03, H * 0.175), (cx + W * 0.095, H * 0.215)), brow_w, ink_rgba)
+        elif mood == "worried":
+            for s, cx in ((-1, cx_l), (1, cx_r)):
+                draw_eye(upper_hi, cx, eye_y, r_outer=r_eye, ring_w=ring_w, pupil_r=pupil_r * 0.88, dy=H * 0.01)
+                ud = ImageDraw.Draw(upper_hi)
+                _draw_pill_curve(ud, _cubic_pts(
+                    (cx - W * 0.095, H * (0.265 if s < 0 else 0.218)),
+                    (cx - W * 0.03, H * 0.236),
+                    (cx + W * 0.03, H * 0.236),
+                    (cx + W * 0.095, H * (0.218 if s < 0 else 0.265))), brow_w, ink_rgba)
+
+    upper_down = upper_hi.resize((sz, sz), Image.Resampling.LANCZOS)
+
+    def _build_mouth_layer(is_open):
+        layer_hi = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        md = ImageDraw.Draw(layer_hi)
+        if not is_open and mouth_closed_drawer is not None:
+            mouth_closed_drawer(md, W, H)
+        elif is_open and mouth_open_drawer is not None:
+            mouth_open_drawer(md, W, H)
+        else:
+            mx = W * 0.50
+            my = H * 0.72
+            mw = W * 0.15
+            stroke = max(5.0, W * 0.026)
+            if not is_open:
+                if mood in ("happy", "smug"):
+                    _draw_pill_curve(md, _cubic_pts(
+                        (mx - mw, my - H * 0.015), (mx - mw * 0.4, my + H * 0.045),
+                        (mx + mw * 0.4, my + H * 0.045), (mx + mw, my - H * 0.025)), stroke, ink_rgba)
+                elif mood in ("worried", "skeptical"):
+                    _draw_pill_curve(md, _cubic_pts(
+                        (mx - mw * 0.85, my + H * 0.020), (mx - mw * 0.3, my - H * 0.018),
+                        (mx + mw * 0.3, my - H * 0.018), (mx + mw * 0.85, my + H * 0.020)), stroke, ink_rgba)
+                elif mood == "surprised":
+                    r_o = W * 0.055
+                    md.ellipse((mx - r_o, my - r_o * 1.1, mx + r_o, my + r_o * 1.1),
+                               fill=mouth_rgba, outline=ink_rgba, width=max(4, int(round(stroke))))
+                else:
+                    _draw_pill_curve(md, _cubic_pts(
+                        (mx - mw * 0.82, my), (mx - mw * 0.3, my + H * 0.014),
+                        (mx + mw * 0.3, my + H * 0.014), (mx + mw * 0.82, my)), stroke, ink_rgba)
+            else:
+                rx_m = W * (0.105 if mood != "surprised" else 0.088)
+                ry_m = H * (0.078 if mood != "surprised" else 0.095)
+                box = (mx - rx_m, my - ry_m * 0.75, mx + rx_m, my + ry_m * 1.05)
+                md.ellipse(box, fill=mouth_rgba)
+                # Clipped upper teeth + lower tongue inside mouth interior
+                interior = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+                idraw = ImageDraw.Draw(interior)
+                idraw.rectangle((mx - rx_m, my - ry_m * 0.8, mx + rx_m, my - ry_m * 0.30), fill=teeth_rgba)
+                idraw.ellipse((mx - rx_m * 0.65, my + ry_m * 0.15, mx + rx_m * 0.65, my + ry_m * 1.15),
+                              fill=tongue_rgba)
+                m_mask = Image.new("L", (W, H), 0)
+                ImageDraw.Draw(m_mask).ellipse(box, fill=255)
+                interior.putalpha(ImageChops.multiply(interior.getchannel("A"), m_mask))
+                layer_hi.alpha_composite(interior)
+                ImageDraw.Draw(layer_hi).ellipse(box, outline=ink_rgba, width=max(4, int(round(stroke))))
+
+        layer_down = layer_hi.resize((sz, sz), Image.Resampling.LANCZOS)
+        # Strictly zero any Lanczos ringing above split_y_px so upper face is 100% locked
+        arr = np.asarray(layer_down, dtype=np.uint8).copy()
+        arr[:split_y_px, :, :] = 0
+        return Image.fromarray(arr, mode="RGBA")
+
+    def _compose_with_dark_bleed(mouth_layer):
+        out = upper_down.copy()
+        out.alpha_composite(mouth_layer)
+        arr = np.asarray(out, dtype=np.uint8).copy()
+        zero_a = arr[:, :, 3] <= 2
+        arr[zero_a, 0:3] = ink_rgba[:3]
+        arr[zero_a, 3] = 0
+        return Image.fromarray(arr, mode="RGBA")
+
+    closed_img = _compose_with_dark_bleed(_build_mouth_layer(False))
+    talk_img = _compose_with_dark_bleed(_build_mouth_layer(True))
+    lock = verify_upper_face_lock(closed_img, talk_img, split_y_frac=split_y_frac, max_abs_diff=0)
+    if not lock["pass"]:
+        raise RuntimeError(f"Pixel-locked upper face assertion failed: {lock}")
+
+    closed_path = talk_path = None
+    if out_dir is not None:
+        folder = Path(out_dir)
+        folder.mkdir(parents=True, exist_ok=True)
+        closed_path = folder / f"{name}_closed.png"
+        talk_path = folder / f"{name}_talk.png"
+        closed_img.save(closed_path, "PNG")
+        talk_img.save(talk_path, "PNG")
+
+    return {
+        "closed": closed_path,
+        "talk": talk_path,
+        "closed_image": closed_img,
+        "talk_image": talk_img,
+        "lock": lock,
+    }
+
+
+def setup_chiaroscuro_lighting(
+    scene,
+    col,
+    *,
+    world_color="#182236",
+    world_strength=0.16,
+    key_watts=180.0,
+    fill_watts=30.0,
+    rim_watts=75.0,
+    key_color="#FFD49A",
+    fill_color="#89B2FF",
+    rim_color="#9BC4FF",
+    key_loc=(1.9, -2.0, 2.7),
+    fill_loc=(-2.0, -1.6, 1.8),
+    rim_loc=(-1.6, 1.6, 2.2),
+    target=(0.0, 0.0, 0.9),
+    key_size=0.95,
+    fill_size=1.6,
+    rim_size=0.85,
+    gtao_distance=0.55,
+    prefix="Chiaroscuro",
+    sun_energy=0.0,
+    sun_color="#FFE8C8",
+):
+    """Configure 6:1 directional chiaroscuro lighting + EEVEE Next Contact AO.
+
+    Installs a low-ambient cool slate World (zero flat ambient wash), enables
+    `AMBIENT_OCCLUSION_ONLY` contact AO (`gtao_distance`), adds one shadow-casting
+    warm directional key and a shadowless cool fill at `key_watts : fill_watts`
+    (default 180 W : 30 W = 6:1), plus an optional shadowless cool rim.
+    """
+    if bpy is None:
+        raise RuntimeError("setup_chiaroscuro_lighting requires Blender 4.2 Python.")
+    eevee = scene.eevee
+    eevee.use_raytracing = False
+    if hasattr(eevee, "fast_gi_method"):
+        eevee.fast_gi_method = "AMBIENT_OCCLUSION_ONLY"
+    if hasattr(eevee, "gtao_distance"):
+        eevee.gtao_distance = float(gtao_distance)
+    eevee.shadow_ray_count = 2
+    eevee.shadow_step_count = 6
+
+    world = bpy.data.worlds.new(f"{prefix} | Slate World")
+    world.use_nodes = True
+    wn, wl = world.node_tree.nodes, world.node_tree.links
+    wn.clear()
+    bg = wn.new("ShaderNodeBackground")
+    bg.inputs["Color"].default_value = look.rgba(world_color)
+    bg.inputs["Strength"].default_value = float(world_strength)
+    wout = wn.new("ShaderNodeOutputWorld")
+    wl.new(bg.outputs[0], wout.inputs["Surface"])
+    scene.world = world
+
+    key = make_ricks_light(f"{prefix} | Warm Key", col, key_loc, target, key_color, float(key_watts), size=key_size)
+    key.data.use_shadow = True
+    key.data.use_shadow_jitter = False
+
+    fill = make_ricks_light(f"{prefix} | Cool Fill", col, fill_loc, target, fill_color, float(fill_watts), size=fill_size)
+    fill.data.use_shadow = False
+
+    rim = None
+    if rim_watts and float(rim_watts) > 0.0:
+        rim = make_ricks_light(f"{prefix} | Cool Rim", col, rim_loc, target, rim_color, float(rim_watts), size=rim_size)
+        rim.data.use_shadow = False
+
+    sun = None
+    if sun_energy and float(sun_energy) > 0.0:
+        sun = look.make_sun(scene, f"{prefix} | Sun", azimuth=128, elevation=40,
+                            energy=float(sun_energy), color=sun_color, shadows=True)
+
+    return {
+        "world": world,
+        "key": key,
+        "fill": fill,
+        "rim": rim,
+        "sun": sun,
+        "key_to_fill_ratio": float(key_watts) / max(1e-6, float(fill_watts)),
+    }
+
+
+def make_subtle_light_cone(name, col, top, bottom, narrow, wide, color="#FFC970", *,
+                           peak_alpha=0.013, emission_strength=1.15, segments=20):
+    """Volume-free feathered light cone strictly clamped to `peak_alpha <= 0.015`.
+
+    Replaces milky high-alpha cones with a soft LayerWeight + vertical Z fade
+    that preserves dark chiaroscuro contrast under AgX.
+    """
+    if bpy is None:
+        raise RuntimeError("make_subtle_light_cone requires Blender 4.2 Python.")
+    clamped = min(0.015, max(0.001, float(peak_alpha)))
+    m = emission(name, color, float(emission_strength))
+    m.surface_render_method = "BLENDED"
+    n, l = m.node_tree.nodes, m.node_tree.links
+    em = next(nd for nd in n if nd.type == "EMISSION")
+    out = next(nd for nd in n if nd.type == "OUTPUT_MATERIAL")
+    geom = n.new("ShaderNodeLayerWeight")
+    geom.inputs["Blend"].default_value = 0.45
+    ramp = n.new("ShaderNodeValToRGB")
+    ramp.color_ramp.elements[0].position = 0.0
+    ramp.color_ramp.elements[0].color = (0.0, 0.0, 0.0, 1.0)
+    ramp.color_ramp.elements[1].position = 0.85
+    ramp.color_ramp.elements[1].color = (clamped, clamped, clamped, 1.0)
+    tc = n.new("ShaderNodeTexCoord")
+    sep = n.new("ShaderNodeSeparateXYZ")
+    fade = n.new("ShaderNodeMapRange")
+    fade.interpolation_type = "SMOOTHERSTEP"
+    fade.inputs["From Min"].default_value = 0.0
+    fade.inputs["From Max"].default_value = 0.95
+    fade.inputs["To Min"].default_value = 0.15
+    fade.inputs["To Max"].default_value = 1.0
+    mul = n.new("ShaderNodeMath")
+    mul.operation = "MULTIPLY"
+    clear = n.new("ShaderNodeBsdfTransparent")
+    mix = n.new("ShaderNodeMixShader")
+    l.new(geom.outputs["Facing"], ramp.inputs[0])
+    l.new(tc.outputs["Generated"], sep.inputs[0])
+    l.new(sep.outputs["Z"], fade.inputs["Value"])
+    l.new(ramp.outputs[0], mul.inputs[0])
+    l.new(fade.outputs[0], mul.inputs[1])
+    l.new(mul.outputs[0], mix.inputs[0])
+    l.new(clear.outputs[0], mix.inputs[1])
+    l.new(em.outputs[0], mix.inputs[2])
+    l.new(mix.outputs[0], out.inputs[0])
+    top_v, bot_v = Vector(top), Vector(bottom)
+    obj = cylinder(name, col, (top_v + bot_v) / 2, wide, (top_v - bot_v).length, m,
+                   r2=narrow, length_segments=int(segments))
+    obj.rotation_euler = (top_v - bot_v).to_track_quat("Z", "Y").to_euler()
+    look.mark_role(obj, "wisp")
+    return obj
+
+
+def make_plank_wood_material(name, base_hex="#7D5335", *, rough=0.45,
+                             grain_scale=(1.6, 14.0, 4.0), bump_strength=0.08):
+    """Multi-node oak plank wood PBR material with fine horizontal grain and satin sheen."""
+    m = surface(name, base_hex, rough=rough)
+    n, l = m.node_tree.nodes, m.node_tree.links
+    p = next(x for x in n if x.type == "BSDF_PRINCIPLED")
+    tc = n.new("ShaderNodeTexCoord")
+    mp = n.new("ShaderNodeMapping")
+    mp.inputs["Scale"].default_value = tuple(grain_scale)
+    ns = n.new("ShaderNodeTexNoise")
+    ns.inputs["Scale"].default_value = 5.5
+    ns.inputs["Detail"].default_value = 4.0
+    ns.inputs["Roughness"].default_value = 0.62
+    c = look.rgba(base_hex)
+    c_dark = (c[0] * 0.72, c[1] * 0.68, c[2] * 0.65, 1.0)
+    c_lite = (min(1.0, c[0] * 1.14), min(1.0, c[1] * 1.12), min(1.0, c[2] * 1.08), 1.0)
+    rmp = n.new("ShaderNodeValToRGB")
+    rmp.color_ramp.elements[0].position, rmp.color_ramp.elements[0].color = 0.25, c_dark
+    rmp.color_ramp.elements[1].position, rmp.color_ramp.elements[1].color = 0.78, c_lite
+    rmp.color_ramp.elements.new(0.52).color = c
+    mr = n.new("ShaderNodeMapRange")
+    mr.inputs["To Min"].default_value = max(0.30, rough - 0.08)
+    mr.inputs["To Max"].default_value = min(0.70, rough + 0.10)
+    bmp = n.new("ShaderNodeBump")
+    bmp.inputs["Strength"].default_value = float(bump_strength)
+    bmp.inputs["Distance"].default_value = 0.008
+    l.new(tc.outputs["Object"], mp.inputs["Vector"])
+    l.new(mp.outputs["Vector"], ns.inputs["Vector"])
+    l.new(ns.outputs["Fac"], rmp.inputs[0])
+    l.new(rmp.outputs[0], p.inputs["Base Color"])
+    l.new(ns.outputs["Fac"], mr.inputs["Value"])
+    l.new(mr.outputs[0], p.inputs["Roughness"])
+    l.new(ns.outputs["Fac"], bmp.inputs["Height"])
+    l.new(bmp.outputs[0], p.inputs["Normal"])
+    p.inputs["Specular IOR Level"].default_value = 0.45
+    return m
+
+
+def build_beveled_plank_floor(
+    col,
+    name="Floor | Beveled Planks",
+    x0=-4.0,
+    x1=4.0,
+    y0=-3.0,
+    y1=4.0,
+    z=0.0,
+    *,
+    plank_w=0.18,
+    tones=("#6E472B", "#7D5335", "#8B5E3C"),
+    rough=0.45,
+    seed=42,
+    subfloor=True,
+):
+    """Build real 0.18 m beveled 3D wood planks merged into 3 oak-tone meshes.
+
+    Replaces stretched wood floor cubes with crisp staggered-seam planks across
+    3 oak tones merged into 3 low-draw-call meshes plus an optional dark subfloor.
+    Top walking surface sits cleanly at world `Z = z`.
+    """
+    if bpy is None:
+        raise RuntimeError("build_beveled_plank_floor requires Blender 4.2 Python.")
+    rng = random.Random(seed)
+    tones = tuple(tones)
+    if len(tones) != 3:
+        raise ValueError("build_beveled_plank_floor expects exactly 3 oak tone hex colors.")
+    mats = [make_plank_wood_material(f"{name} | Oak {i}", hex_c, rough=rough) for i, hex_c in enumerate(tones)]
+
+    objs = []
+    if subfloor:
+        m_seam = surface(f"{name} | Dark Seam Base", "#281910", rough=0.90)
+        bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0.5 * (x0 + x1), 0.5 * (y0 + y1), z - 0.064))
+        sub_obj = put(bpy.context.object, col, mat=m_seam)
+        sub_obj.name = f"{name} | Subfloor"
+        sub_obj.scale = (x1 - x0, y1 - y0, 0.12)
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+        objs.append(sub_obj)
+
+    buckets = [([], []) for _ in range(3)]
+    gap = 0.004
+    bev = 0.008
+    h_plank = 0.018
+    row_i = 0
+    y = float(y0)
+    while y < y1 - 1e-4:
+        ry0 = y + gap * 0.5
+        ry1 = min(float(y1), y + float(plank_w)) - gap * 0.5
+        if ry1 - ry0 < 0.03:
+            break
+        offset = (row_i % 3) * 0.62 + rng.uniform(-0.12, 0.12)
+        x = float(x0) - (offset % 1.45)
+        while x < x1 - 1e-4:
+            plen = rng.uniform(1.15, 1.75)
+            px0 = max(float(x0), x) + gap * 0.5
+            px1 = min(float(x1), x + plen) - gap * 0.5
+            x += plen
+            if px1 - px0 < 0.06:
+                continue
+            tone_idx = (row_i + rng.randint(0, 2)) % 3
+            verts, faces = buckets[tone_idx]
+            k = len(verts)
+            zb, zt = float(z) - h_plank, float(z)
+            b = min(bev, 0.25 * (px1 - px0), 0.25 * (ry1 - ry0))
+            verts.extend([
+                (px0, ry0, zb), (px1, ry0, zb), (px1, ry1, zb), (px0, ry1, zb),
+                (px0 + b, ry0 + b, zt), (px1 - b, ry0 + b, zt), (px1 - b, ry1 - b, zt), (px0 + b, ry1 - b, zt),
+            ])
+            faces.extend([
+                (k + 4, k + 5, k + 6, k + 7),
+                (k + 0, k + 1, k + 5, k + 4),
+                (k + 1, k + 2, k + 6, k + 5),
+                (k + 2, k + 3, k + 7, k + 6),
+                (k + 3, k + 0, k + 4, k + 7),
+            ])
+        y += float(plank_w)
+        row_i += 1
+
+    for i, (verts, faces) in enumerate(buckets):
+        if verts:
+            objs.append(mesh(f"{name} | Planks Tone {i}", col, verts, faces, mats[i], smoothing=False))
+    return objs
+
+
+def make_brushed_metal_material(name, color="#C8CDD4", *, metallic=0.82, roughness=0.28,
+                                brush_scale=(16.0, 16.0, 2.5), bump_strength=0.05, glow=0.0):
+    """Anisotropic-feel brushed metal PBR shader with micro-streak roughness & subtle bump."""
+    m = surface(name, color, rough=roughness, metal=metallic, glow=glow)
+    n, l = m.node_tree.nodes, m.node_tree.links
+    p = next(x for x in n if x.type == "BSDF_PRINCIPLED")
+    p.inputs["Specular IOR Level"].default_value = 0.60
+    tc = n.new("ShaderNodeTexCoord")
+    mul = n.new("ShaderNodeVectorMath")
+    mul.operation = "MULTIPLY"
+    mul.inputs[1].default_value = tuple(brush_scale)
+    l.new(tc.outputs["Object"], mul.inputs[0])
+    ns = n.new("ShaderNodeTexNoise")
+    ns.inputs["Scale"].default_value = 4.2
+    ns.inputs["Detail"].default_value = 2.5
+    l.new(mul.outputs["Vector"], ns.inputs["Vector"])
+    rmap = n.new("ShaderNodeMapRange")
+    rmap.inputs["From Min"].default_value = 0.25
+    rmap.inputs["From Max"].default_value = 0.75
+    rmap.inputs["To Min"].default_value = max(0.12, roughness - 0.06)
+    rmap.inputs["To Max"].default_value = min(0.58, roughness + 0.08)
+    l.new(ns.outputs["Fac"], rmap.inputs["Value"])
+    l.new(rmap.outputs[0], p.inputs["Roughness"])
+    if bump_strength and float(bump_strength) > 0.0:
+        bmp = n.new("ShaderNodeBump")
+        bmp.inputs["Strength"].default_value = float(bump_strength)
+        bmp.inputs["Distance"].default_value = 0.005
+        l.new(ns.outputs["Fac"], bmp.inputs["Height"])
+        l.new(bmp.outputs["Normal"], p.inputs["Normal"])
+    return m
+
+
+def make_editorial_brick_material(name, color1="#8C4A3A", color2="#73392C", mortar="#2D2322", *,
+                                  scale=3.6, brick_w=0.44, row_h=0.20, mortar_sz=0.028,
+                                  rough=0.86, bump_strength=0.14, glow=0.0):
+    """Editorial masonry wall shader with subtle plaster patina and recessed mortar bump."""
+    m = surface(name, color1, rough=rough)
+    n, l = m.node_tree.nodes, m.node_tree.links
+    p = next(x for x in n if x.type == "BSDF_PRINCIPLED")
+    p.inputs["Specular IOR Level"].default_value = 0.14
+    tc = n.new("ShaderNodeTexCoord")
+    sep = n.new("ShaderNodeSeparateXYZ")
+    add_xy = n.new("ShaderNodeMath")
+    add_xy.operation = "ADD"
+    comb = n.new("ShaderNodeCombineXYZ")
+    l.new(tc.outputs["Object"], sep.inputs[0])
+    l.new(sep.outputs["X"], add_xy.inputs[0])
+    l.new(sep.outputs["Y"], add_xy.inputs[1])
+    l.new(add_xy.outputs[0], comb.inputs["X"])
+    l.new(sep.outputs["Z"], comb.inputs["Y"])
+
+    ns = n.new("ShaderNodeTexNoise")
+    ns.inputs["Scale"].default_value = 3.2
+    ns.inputs["Detail"].default_value = 3.5
+    ns.inputs["Roughness"].default_value = 0.55
+    l.new(tc.outputs["Object"], ns.inputs["Vector"])
+
+    mot = n.new("ShaderNodeMixRGB")
+    mot.inputs[1].default_value = look.rgba(color2)
+    mot.inputs[2].default_value = look.rgba(color1)
+    l.new(ns.outputs["Fac"], mot.inputs[0])
+
+    brk = n.new("ShaderNodeTexBrick")
+    brk.offset = 0.5
+    brk.inputs["Color1"].default_value = look.rgba(color1)
+    brk.inputs["Color2"].default_value = look.rgba(color2)
+    brk.inputs["Mortar"].default_value = look.rgba(mortar)
+    brk.inputs["Scale"].default_value = float(scale)
+    brk.inputs["Mortar Size"].default_value = float(mortar_sz)
+    brk.inputs["Mortar Smooth"].default_value = 0.05
+    brk.inputs["Brick Width"].default_value = float(brick_w)
+    brk.inputs["Row Height"].default_value = float(row_h)
+    l.new(comb.outputs["Vector"], brk.inputs["Vector"])
+    l.new(mot.outputs[0], brk.inputs["Color1"])
+    l.new(brk.outputs["Color"], p.inputs["Base Color"])
+    if glow and float(glow) > 0.0:
+        l.new(brk.outputs["Color"], p.inputs["Emission Color"])
+        p.inputs["Emission Strength"].default_value = float(glow)
+    bm = n.new("ShaderNodeBump")
+    bm.inputs["Strength"].default_value = float(bump_strength)
+    bm.inputs["Distance"].default_value = 0.015
+    l.new(brk.outputs["Fac"], bm.inputs["Height"])
+    l.new(bm.outputs["Normal"], p.inputs["Normal"])
+    return m
+
+
+def make_tile_material(name, color1="#E2EFEF", color2="#CEE3E4", mortar="#4B5B64", *,
+                       scale=4.8, tile_w=0.52, row_h=0.22, mortar_sz=0.018,
+                       rough=0.20, grout_rough=0.85, bump_strength=0.24, axis_xz=True):
+    """Glossy ceramic wall/floor tile shader with matte grout contrast and crisp joint bump."""
+    m = surface(name, color1, rough=rough)
+    n, l = m.node_tree.nodes, m.node_tree.links
+    p = next(x for x in n if x.type == "BSDF_PRINCIPLED")
+    p.inputs["Specular IOR Level"].default_value = 0.65
+    tc = n.new("ShaderNodeTexCoord")
+    if axis_xz:
+        sep = n.new("ShaderNodeSeparateXYZ")
+        comb = n.new("ShaderNodeCombineXYZ")
+        l.new(tc.outputs["Object"], sep.inputs[0])
+        l.new(sep.outputs["X"], comb.inputs["X"])
+        l.new(sep.outputs["Z"], comb.inputs["Y"])
+        l.new(sep.outputs["Y"], comb.inputs["Z"])
+        vec_out = comb.outputs["Vector"]
+    else:
+        vec_out = tc.outputs["Object"]
+    brk = n.new("ShaderNodeTexBrick")
+    brk.offset = 0.5
+    brk.inputs["Color1"].default_value = look.rgba(color1)
+    brk.inputs["Color2"].default_value = look.rgba(color2)
+    brk.inputs["Mortar"].default_value = look.rgba(mortar)
+    brk.inputs["Scale"].default_value = float(scale)
+    brk.inputs["Brick Width"].default_value = float(tile_w)
+    brk.inputs["Row Height"].default_value = float(row_h)
+    brk.inputs["Mortar Size"].default_value = float(mortar_sz)
+    brk.inputs["Mortar Smooth"].default_value = 0.15
+    mr = n.new("ShaderNodeMapRange")
+    mr.inputs["From Min"].default_value = 0.0
+    mr.inputs["From Max"].default_value = 1.0
+    mr.inputs["To Min"].default_value = float(rough)
+    mr.inputs["To Max"].default_value = float(grout_rough)
+    inv = n.new("ShaderNodeMath")
+    inv.operation = "SUBTRACT"
+    inv.inputs[0].default_value = 1.0
+    bmp = n.new("ShaderNodeBump")
+    bmp.inputs["Strength"].default_value = float(bump_strength)
+    bmp.inputs["Distance"].default_value = 0.015
+    l.new(vec_out, brk.inputs["Vector"])
+    l.new(brk.outputs["Color"], p.inputs["Base Color"])
+    l.new(brk.outputs["Fac"], mr.inputs["Value"])
+    l.new(mr.outputs[0], p.inputs["Roughness"])
+    l.new(brk.outputs["Fac"], inv.inputs[1])
+    l.new(inv.outputs[0], bmp.inputs["Height"])
+    l.new(bmp.outputs[0], p.inputs["Normal"])
+    return m
+
+
+def make_glossy_fluid_material(name, base_hex="#1D7FA8", glow_hex="#68D8F5", *,
+                               rough=0.06, glow=0.45, alpha=0.92, wave_scale=8.5,
+                               bump_strength=0.22, use_uv=True):
+    """Glossy animated liquid shader returning `(material, mapping_node)`.
+
+    Keyframe `mapping_node.inputs["Location"].default_value` along Y/V to drive
+    continuous ripple flow along lofted tubes or water planes without sphere soup.
+    """
+    m = surface(name, base_hex, rough=rough)
+    if alpha < 0.99:
+        m.surface_render_method = "BLENDED"
+    n, l = m.node_tree.nodes, m.node_tree.links
+    p = next(x for x in n if x.type == "BSDF_PRINCIPLED")
+    p.inputs["Specular IOR Level"].default_value = 0.92
+    if "Coat Weight" in p.inputs:
+        p.inputs["Coat Weight"].default_value = 0.90
+        p.inputs["Coat Roughness"].default_value = 0.04
+    p.inputs["Alpha"].default_value = float(alpha)
+    p.inputs["Emission Color"].default_value = look.rgba(glow_hex)
+    p.inputs["Emission Strength"].default_value = float(glow)
+
+    tc = n.new("ShaderNodeTexCoord")
+    mp = n.new("ShaderNodeMapping")
+    mp.inputs["Scale"].default_value = (1.5, 6.0, 1.5) if use_uv else (2.5, 2.5, 2.5)
+    ns = n.new("ShaderNodeTexNoise")
+    ns.inputs["Scale"].default_value = float(wave_scale)
+    ns.inputs["Detail"].default_value = 3.5
+    ns.inputs["Roughness"].default_value = 0.55
+
+    rmp = n.new("ShaderNodeValToRGB")
+    rmp.color_ramp.elements[0].position, rmp.color_ramp.elements[0].color = 0.25, look.rgba(base_hex)
+    rmp.color_ramp.elements[1].position, rmp.color_ramp.elements[1].color = 0.80, look.rgba(glow_hex)
+
+    bmp = n.new("ShaderNodeBump")
+    bmp.inputs["Strength"].default_value = float(bump_strength)
+    bmp.inputs["Distance"].default_value = 0.03
+
+    src = tc.outputs["UV"] if use_uv else tc.outputs["Object"]
+    l.new(src, mp.inputs["Vector"])
+    l.new(mp.outputs["Vector"], ns.inputs["Vector"])
+    l.new(ns.outputs["Fac"], rmp.inputs[0])
+    l.new(rmp.outputs[0], p.inputs["Base Color"])
+    l.new(ns.outputs["Fac"], bmp.inputs["Height"])
+    l.new(bmp.outputs[0], p.inputs["Normal"])
+    return m, mp
+
+
+def build_lofted_tube(name, col, points, radii, mat, *, parent=None, segments=16,
+                      cap_ends=True, closed=False, smooth=True):
+    """Build a continuous lofted quad-strip tube along 3D `points` with clean flow UVs.
+
+    Uses parallel-transport (Bishop) frames to avoid Frenet twist flips and accepts
+    either a constant float radius or a per-point radius sequence.
+    """
+    if bpy is None:
+        raise RuntimeError("build_lofted_tube requires Blender 4.2 Python.")
+    pts = [Vector(p) for p in points]
+    n_pts = len(pts)
+    if n_pts < 2:
+        raise ValueError("build_lofted_tube requires at least 2 centerline points.")
+    if isinstance(radii, (int, float)):
+        rad_list = [float(radii)] * n_pts
+    else:
+        rad_list = [float(r) for r in radii]
+        if len(rad_list) != n_pts:
+            raise ValueError(f"Expected {n_pts} radii, got {len(rad_list)}")
+
+    seg = max(3, int(segments))
+    tangents = []
+    for i in range(n_pts):
+        if closed:
+            t = pts[(i + 1) % n_pts] - pts[(i - 1) % n_pts]
+        elif i == 0:
+            t = pts[1] - pts[0]
+        elif i == n_pts - 1:
+            t = pts[-1] - pts[-2]
+        else:
+            t = pts[i + 1] - pts[i - 1]
+        if t.length_squared < 1e-12:
+            t = tangents[-1] if tangents else Vector((0.0, 0.0, 1.0))
+        else:
+            t = t.normalized()
+        tangents.append(t)
+
+    # Parallel-transport frame initialization
+    t0 = tangents[0]
+    ref = Vector((0.0, 0.0, 1.0)) if abs(t0.z) < 0.9 else Vector((1.0, 0.0, 0.0))
+    normal = (ref - t0 * ref.dot(t0)).normalized()
+    frames = [(normal, t0.cross(normal).normalized())]
+    for i in range(1, n_pts):
+        ti = tangents[i]
+        n_prev = frames[-1][0]
+        n_proj = n_prev - ti * n_prev.dot(ti)
+        if n_proj.length_squared < 1e-10:
+            alt = Vector((1.0, 0.0, 0.0)) if abs(ti.x) < 0.9 else Vector((0.0, 1.0, 0.0))
+            n_proj = alt - ti * alt.dot(ti)
+        n_cur = n_proj.normalized()
+        b_cur = ti.cross(n_cur).normalized()
+        frames.append((n_cur, b_cur))
+
+    cum = [0.0]
+    for i in range(1, n_pts):
+        cum.append(cum[-1] + (pts[i] - pts[i - 1]).length)
+    total_len = max(1e-6, cum[-1])
+
+    stride = seg + 1
+    verts, faces, uvs = [], [], []
+    for i, (pt, r, (n_vec, b_vec)) in enumerate(zip(pts, rad_list, frames)):
+        v_coord = cum[i] / total_len
+        for j in range(stride):
+            a = math.tau * j / seg
+            offset = (n_vec * math.cos(a) + b_vec * math.sin(a)) * r
+            verts.append(tuple(pt + offset))
+            uvs.append((j / seg, v_coord))
+
+    ring_pairs = list(range(n_pts - 1))
+    for i in ring_pairs:
+        base0 = i * stride
+        base1 = (i + 1) * stride
+        for j in range(seg):
+            faces.append((base0 + j, base0 + j + 1, base1 + j + 1, base1 + j))
+    if closed and n_pts >= 3:
+        base0 = (n_pts - 1) * stride
+        base1 = 0
+        for j in range(seg):
+            faces.append((base0 + j, base0 + j + 1, base1 + j + 1, base1 + j))
+    elif cap_ends:
+        faces.append(tuple(reversed(range(seg))))
+        last = (n_pts - 1) * stride
+        faces.append(tuple(range(last, last + seg)))
+
+    return mesh(name, col, verts, faces, mat, parent=parent, smoothing=smooth, uv=uvs)
+
+
+def build_lathe_prop(name, col, profile_rz, mat, *, loc=(0.0, 0.0, 0.0), parent=None,
+                     segments=24, smooth=True, cap_bottom=True, cap_top=False):
+    """Build a continuous surface-of-revolution prop from `[(radius, z), ...]` profile points."""
+    if bpy is None:
+        raise RuntimeError("build_lathe_prop requires Blender 4.2 Python.")
+    profile = [(max(1e-4, float(r)), float(z)) for r, z in profile_rz]
+    n_rings = len(profile)
+    if n_rings < 2:
+        raise ValueError("build_lathe_prop requires at least 2 (radius, z) profile points.")
+
+    seg = max(6, int(segments))
+    stride = seg + 1
+    verts, faces, uvs = [], [], []
+    for j, (r, z) in enumerate(profile):
+        v_coord = j / (n_rings - 1)
+        for i in range(stride):
+            a = math.tau * i / seg
+            verts.append((r * math.cos(a), r * math.sin(a), z))
+            uvs.append((i / seg, v_coord))
+
+    for j in range(n_rings - 1):
+        b0 = j * stride
+        b1 = (j + 1) * stride
+        for i in range(seg):
+            faces.append((b0 + i, b0 + i + 1, b1 + i + 1, b1 + i))
+
+    if cap_bottom:
+        faces.append(tuple(reversed(range(seg))))
+    if cap_top:
+        last = (n_rings - 1) * stride
+        faces.append(tuple(range(last, last + seg)))
+
+    obj = mesh(name, col, verts, faces, mat, parent=parent, smoothing=smooth, uv=uvs)
+    obj.location = loc
+    return obj
+
+
+def setup_diorama_camera_and_compositor(
+    scene,
+    camera=None,
+    *,
+    lens_mm=27.0,
+    fog_glow_mix=0.08,
+    clip_end=250.0,
+    clip_start=0.05,
+    portal_flash_keys=(),
+    replace=True,
+    glare_threshold=None,
+    cinema_grade=True,
+):
+    """Configure a crisp deep-focus 9:16 cutaway diorama camera & compositor.
+
+    Sets `sensor_fit="VERTICAL"`, `sensor_height=36.0`, `clip_start=0.05`,
+    `clip_end=clip_end`, installs `setup_ricks_compositor`, tunes Fog Glow mix
+    to `fog_glow_mix` (default `0.08`), and strictly enforces `use_dof = False`
+    AFTER `setup_ricks_compositor()` (which otherwise re-enables shallow DOF).
+    """
+    if bpy is None:
+        raise RuntimeError("setup_diorama_camera_and_compositor requires Blender 4.2 Python.")
+    if camera is None:
+        camera = scene.camera
+    if camera is None:
+        cam_data = bpy.data.cameras.new("Camera | Diorama")
+        camera = bpy.data.objects.new("Camera | Diorama", cam_data)
+        scene.collection.objects.link(camera)
+        scene.camera = camera
+
+    camera.data.type = "PERSP"
+    camera.data.sensor_fit = "VERTICAL"
+    camera.data.sensor_height = 36.0
+    camera.data.lens = float(lens_mm)
+    camera.data.clip_start = float(clip_start)
+    camera.data.clip_end = float(clip_end)
+
+    flash_node = setup_ricks_compositor(
+        scene,
+        camera=camera,
+        portal_flash_keys=portal_flash_keys,
+        replace=replace,
+        cinema_grade=cinema_grade,
+    )
+
+    nodes = scene.node_tree.nodes
+    glare = next((nd for nd in nodes if nd.type == "GLARE"), None)
+    if glare is not None:
+        if glare_threshold is not None:
+            glare.threshold = float(glare_threshold)
+        for link in scene.node_tree.links:
+            if link.from_node == glare and link.to_node.type == "MIX_RGB" and link.to_node.blend_type == "ADD":
+                link.to_node.name = "Cinema | Fog Glow Mix"
+                link.to_node.label = f"Fog Glow Mix {float(fog_glow_mix):.2f}"
+                link.to_node.inputs[0].default_value = float(fog_glow_mix)
+
+    # CRITICAL: strictly enforce deep focus & vertical sensor AFTER setup_ricks_compositor()
+    camera.data.type = "PERSP"
+    camera.data.sensor_fit = "VERTICAL"
+    camera.data.sensor_height = 36.0
+    camera.data.lens = float(lens_mm)
+    camera.data.clip_start = float(clip_start)
+    camera.data.clip_end = float(clip_end)
+    camera.data.dof.use_dof = False
+    return camera, flash_node

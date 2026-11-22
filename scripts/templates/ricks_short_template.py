@@ -10,6 +10,7 @@ import json
 import math
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 from uuid import uuid4
@@ -17,6 +18,20 @@ from uuid import uuid4
 ROOT = next(path for path in Path(__file__).resolve().parents
             if (path / "scripts/ricks_v2_kit.py").is_file())
 BLENDER = r"D:\tools\Blender\4.2.23\blender.exe"
+
+
+def resolve_blender_exe(default=BLENDER):
+    """Resolve Blender CLI executable: BLENDER_EXE -> default -> PATH blender -> blender-launcher."""
+    env_exe = os.environ.get("BLENDER_EXE", "").strip()
+    if env_exe:
+        return env_exe
+    if default and Path(default).is_file():
+        return str(default)
+    for name in ("blender", "blender-launcher"):
+        found = shutil.which(name)
+        if found:
+            return found
+    return str(default)
 END, CUT, FPS = 48, 25, 30
 SIZE = (1080, 1920)
 PROOFS = (1, 5, 9, 13, 18, 23, 24, 25, 26, 32, 40, END)
@@ -193,7 +208,7 @@ def main():
     except FileExistsError:
         raise SystemExit(f"GPU busy. Wait for the owner of {lock} before launching Blender.")
     try:
-        cmd = [os.environ.get("BLENDER_EXE", BLENDER), "-b", "--factory-startup"]
+        cmd = [resolve_blender_exe(), "-b", "--factory-startup"]
         if args.render:
             report = json.loads((out / "benchmark/benchmark.json").read_text(encoding="utf-8"))
             if report["status"] != "PASS" or report["telemetry_errors"]:

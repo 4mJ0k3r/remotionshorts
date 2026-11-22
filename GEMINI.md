@@ -1,12 +1,8 @@
-# Gemini CLI workspace entry
+# Gemini CLI Workspace Entry
 
-Read these files in order before making changes for a new animated Short.
+Read and follow [AGENTS.md](AGENTS.md) as the single source of truth before planning or editing.
 
-1. [AGENTS.md](AGENTS.md)
-2. [RICKS_STYLE_SKILL.md v6](RICKS_STYLE_SKILL.md)
-3. [scripts/ricks_v2_kit.py](scripts/ricks_v2_kit.py)
-4. [scripts/templates/ricks_short_template.py](scripts/templates/ricks_short_template.py)
-
-Use the current brief and the render stage the user authorized.
-Follow the shared GPU lock and verify native 1080 × 1920 at 30 fps.
-Keep existing productions and respect the paused handoff in AGENTS.md.
+- **Default workflow:** [RICKS_STYLE_SKILL.md (v7)](RICKS_STYLE_SKILL.md), [scripts/ricks_v2_kit.py](scripts/ricks_v2_kit.py), [scripts/templates/diorama_short_template.py](scripts/templates/diorama_short_template.py), and [scripts/ricks_guardrails.py](scripts/ricks_guardrails.py).
+- **Official Main Character:** Always load from [assets/mascot/](assets/mascot/MASCOT_SKILL.md) — never rebuild from scratch.
+- **Full architecture & 3 GPU paths:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+- Respect the authorized render stage, native `1080 × 1920 @ 30 fps`, `.blender_gpu.lock` (local GPU), and paused handoffs in `AGENTS.md`.

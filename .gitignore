@@ -4,6 +4,8 @@ remotion-tmp/
 .remotion/
 dist/
 build/
+/_scratch/
+/tmp_scratch/
 
 # Rendered outputs, stills, QA contact sheets & backups (keep on local disk, do not push)
 out/
@@ -60,3 +62,18 @@ Thumbs.db
 .vscode/
 .idea/
 *.tsbuildinfo
+
+# Official Main Character Asset Package (tracked in Git for local & Modal workers)
+!/assets/
+!/assets/mascot/
+!/assets/mascot/**
+/assets/**/*.mp4
+/assets/**/*.mov
+/assets/**/*.webm
+/assets/**/__pycache__/
+/assets/**/*.pyc
+/assets/**/*.blend[0-9]*
+/assets/mascot/**/*.bak
+/assets/mascot/**/*.log
+/assets/mascot/**/Thumbs.db
+/assets/mascot/**/.DS_Store

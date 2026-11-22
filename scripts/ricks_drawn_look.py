@@ -28,8 +28,14 @@ kit's RicksCharacter.update_ink for the default look.
 """
 import math
 
-import bpy
-from mathutils import Matrix, Vector
+try:
+    import bpy
+    from mathutils import Matrix, Vector
+except ModuleNotFoundError as error:
+    if error.name not in {"bpy", "mathutils"}:
+        raise
+    bpy = None
+    Matrix = Vector = None
 
 if __package__:
     from . import ricks_v2_kit as kit
@@ -40,22 +46,45 @@ WEIGHT_GROUP = "Drawn ink weight"
 NODE_GROUP = "Rick's drawn | light-weighted ink"
 # Original lopsided presets: egg >0 fuller bottom, tilt in degrees,
 # lumps = (harmonic, amount, phase) on the front-view outline.
+# "round" (1:1) and "upright" (H/W=1.035) strictly ban horizontal oval squash.
 HEAD_SHAPES = {
     "lopsided": {"egg": .08, "tilt": -6.0, "lumps": ((2, .024, .7), (3, .027, 2.2), (5, .010, 2.8))},
     "potato": {"egg": .05, "tilt": 8.0, "lumps": ((2, .032, 2.0), (3, .022, .5), (4, .014, 1.4))},
     "bean": {"egg": .11, "tilt": -3.0, "lumps": ((2, .018, 1.2), (3, .020, 2.4))},
-    "round": {"egg": 0.0, "tilt": 0.0, "lumps": ()},
+    "round": {"egg": 0.0, "tilt": 0.0, "lumps": (), "x_scale": 1.00, "z_scale": 1.00},
+    "upright": {"egg": 0.0, "tilt": 0.0, "lumps": (), "x_scale": 1.00, "z_scale": 1.035},
 }
 DEFAULT_LIGHT = (-.55, -.62, .56)   # toward the light: front-left and above a camera at -Y
 INK = {"head": (.55, 1.2, .9), "body": (.55, 1.2, 1.0), "hair": (.62, 1.25, .5)}  # thin, thick, low-edge extra
+DRAWN_PRESETS = {
+    "paper_white": {
+        "face": kit.PAPER_WHITE_FACE,
+        "face_shadow": kit.PAPER_WHITE_SHADOW,
+        "face_shadow_amount": 0.05,
+        "cloth_shade": 0.84,
+        "brightness": 1.26,
+        "ink": {
+            "head": (0.88, 1.06, 0.06),
+            "body": (0.80, 1.12, 0.22),
+            "hair": (0.85, 1.08, 0.10),
+        },
+    },
+}
 
 
 # ------------------------------------------------------------------ shape
-def head_warp(shape="lopsided", width=1.04):
-    """Return f(Vector head-local) -> Vector for a lopsided front outline."""
+def head_warp(shape="lopsided", width=None):
+    """Return f(Vector head-local) -> Vector for a front-view head silhouette warp.
+
+    Legacy lopsided shapes default to `x_scale=1.04, z_scale=0.97`.
+    `"round"` uses `x_scale=1.00, z_scale=1.00` (1:1) and `"upright"` uses
+    `x_scale=1.00, z_scale=1.035` so horizontal oval squash is strictly eliminated.
+    """
     spec = HEAD_SHAPES[shape] if isinstance(shape, str) else shape
     egg, lumps = spec["egg"], spec["lumps"]
     tilt = math.radians(spec["tilt"])
+    x_scale = float(spec.get("x_scale", 1.04)) if width is None else float(width)
+    z_scale = float(spec.get("z_scale", 0.97))
     rx, rz = kit.HEAD[0], kit.HEAD[2]
     c, s = math.cos(tilt), math.sin(tilt)
 
@@ -65,9 +94,10 @@ def head_warp(shape="lopsided", width=1.04):
         # Full shape on the outline, none at the face centre where the angle is undefined.
         w = min(1.0, math.hypot(x / rx, z / rz)) ** 2
         r = 1 + w * (egg * math.sin(a) + sum(amt * math.sin(h * a + ph) for h, amt, ph in lumps))
-        nx, nz = x * r * width, z * r * .97 + egg * .35 * rz
+        nx, nz = x * r * x_scale, z * r * z_scale + egg * .35 * rz
         nx, nz = nx * c - nz * s, nx * s + nz * c
-        return Vector((nx, y * (1 + .5 * (r - 1)), nz))
+        res = (nx, y * (1 + .5 * (r - 1)), nz)
+        return Vector(res) if Vector is not None else res
     return warp
 
 
@@ -309,17 +339,30 @@ def _image_of(material):
 
 
 # ------------------------------------------------------------------ public API
-def apply_drawn_look(rig, collection, *, light_dir=DEFAULT_LIGHT, head_shape="lopsided", head_width=1.04,
-                     face="#FFF9F0", face_shadow="#C9C9CE", face_shadow_amount=.62, cloth_shade=.78,
-                     ink=None, fists=True, brightness=1.0):
+def apply_drawn_look(rig, collection, *, light_dir=DEFAULT_LIGHT, head_shape="lopsided", head_width=None,
+                     face=None, face_shadow=None, face_shadow_amount=None, cloth_shade=None,
+                     ink=None, fists=True, brightness=None, preset=None):
     """Restyle a built RicksCharacter in place and return its look record.
 
     Call after build_ricks_character()/build_studio_character() and before
     posing. The rig keeps its controls, arms, legs, feet and expressions.
+    Pass `preset="paper_white"` for AgX-calibrated bright paper-white faces
+    (`#FAF9F6` / `#EAE8E1`, `face_shadow_amount=0.05`, `brightness=1.26`).
     """
+    if bpy is None:
+        raise RuntimeError("apply_drawn_look requires Blender 4.2 Python.")
     if getattr(rig, "drawn_look", None):
         raise ValueError(f"{rig.name} already has the drawn look.")
-    ink = {**INK, **(ink or {})}
+    if preset is not None and preset not in DRAWN_PRESETS:
+        raise ValueError(f"Unknown drawn preset {preset!r}; expected one of {tuple(DRAWN_PRESETS)}")
+
+    p_cfg = DRAWN_PRESETS.get(preset, {})
+    face = p_cfg.get("face", "#FFF9F0") if face is None else face
+    face_shadow = p_cfg.get("face_shadow", "#C9C9CE") if face_shadow is None else face_shadow
+    face_shadow_amount = p_cfg.get("face_shadow_amount", .62) if face_shadow_amount is None else face_shadow_amount
+    cloth_shade = p_cfg.get("cloth_shade", .78) if cloth_shade is None else cloth_shade
+    brightness = p_cfg.get("brightness", 1.0) if brightness is None else brightness
+    ink = {**INK, **p_cfg.get("ink", {}), **(ink or {})}
     world = _world_axes(collection)
     light = bpy.data.objects.new(f"Drawn look | {rig.name} light", None)
     collection.objects.link(light)
